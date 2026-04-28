@@ -751,7 +751,7 @@
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 // Replace with your Cloudflare Worker URL after deploying worker.js
 // For local testing without a worker, set DEMO_MODE = true
-const WORKER_URL = 'datastep-proxy.sotempyhehe.workers.dev';
+const WORKER_URL = 'https://datastep-proxy.sotempyhehe.workers.dev';
 const DEMO_MODE = false; // Set to false once worker is deployed
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -866,12 +866,33 @@ function parseCSV(text) {
   analyzeDataset();
 }
 
+const NULL_PLACEHOLDERS = new Set(['n/a', 'na', 'null', 'none', 'nil', '-', '--', '–', '—', '?', 'unknown', 'undefined', 'missing', 'nan', '#n/a', '#na']);
+
+function isEffectivelyNull(v) {
+  if (v === '' || v === null || v === undefined) return true;
+  if (typeof v === 'string' && v.trim() === '') return true;
+  if (typeof v === 'string' && NULL_PLACEHOLDERS.has(v.trim().toLowerCase())) return true;
+  return false;
+}
+
 function updateNullCount() {
-  let nulls = 0;
+  let trueNulls = 0;
+  let blanks = 0;
   state.workingData.forEach(row => {
-    state.headers.forEach(h => { if (row[h] === '' || row[h] === null || row[h] === undefined) nulls++; });
+    state.headers.forEach(h => {
+      const v = row[h];
+      if (v === '' || v === null || v === undefined) { trueNulls++; }
+      else if (typeof v === 'string' && (v.trim() === '' || NULL_PLACEHOLDERS.has(v.trim().toLowerCase()))) { blanks++; }
+    });
   });
-  document.getElementById('stat-nulls').textContent = nulls.toLocaleString();
+  const total = trueNulls + blanks;
+  const el = document.getElementById('stat-nulls');
+  el.textContent = total.toLocaleString();
+  el.title = `${trueNulls.toLocaleString()} true nulls + ${blanks.toLocaleString()} blank/placeholder values`;
+  el.style.cursor = 'help';
+  // Update label to reflect broader meaning
+  const label = el.nextSibling;
+  el.parentElement.lastChild.textContent = total !== trueNulls ? ' empty/null' : ' nulls';
 }
 
 // ─── STATS COMPUTATION ────────────────────────────────────────────────────────
@@ -879,8 +900,12 @@ function computeStats() {
   const stats = {};
   state.headers.forEach(h => {
     const vals = state.workingData.map(r => r[h]);
-    const nullCount = vals.filter(v => v === '' || v === null || v === undefined).length;
-    const nonNull = vals.filter(v => v !== '' && v !== null && v !== undefined);
+    const nullCount = vals.filter(v => isEffectivelyNull(v)).length;
+    const placeholderCount = vals.filter(v => {
+      if (v === '' || v === null || v === undefined) return false;
+      return typeof v === 'string' && NULL_PLACEHOLDERS.has(v.trim().toLowerCase());
+    }).length;
+    const nonNull = vals.filter(v => !isEffectivelyNull(v));
     const numeric = nonNull.map(v => parseFloat(v)).filter(v => !isNaN(v));
     const unique = [...new Set(nonNull)];
     const freq = {};
@@ -889,6 +914,8 @@ function computeStats() {
 
     stats[h] = {
       nullCount,
+      placeholderCount,
+      effectivelyEmptyCount: nullCount + placeholderCount,
       uniqueCount: unique.length,
       totalCount: vals.length,
       sample: nonNull.slice(0, 5),
