@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataStep — Guided Data Cleaning</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0f;
+    --bg2: #161618;
+    --bg3: #1e1e21;
+    --bg4: #252528;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0efe8;
+    --text2: #9e9d96;
+    --text3: #5e5d58;
+    --accent: #c8f06a;
+    --accent2: #a8d44e;
+    --accent-dim: rgba(200,240,106,0.12);
+    --red: #f06a6a;
+    --red-dim: rgba(240,106,106,0.12);
+    --amber: #f0b86a;
+    --blue: #6ab4f0;
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+  }
+
+  .logo {
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .format-pills {
+    display: flex;
+    gap: 6px;
+  }
+
+  .pill {
+    padding: 5px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border2);
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text2);
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+  }
+
+  .pill:hover { border-color: var(--accent); color: var(--accent); }
+  .pill.active { background: var(--accent); color: #0e0e0f; border-color: var(--accent); font-weight: 500; }
+
+  /* MAIN LAYOUT */
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  /* UPLOAD ZONE */
+  #upload-zone {
+    border: 1px dashed var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 4rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg2);
+    margin-bottom: 2rem;
+  }
+
+  #upload-zone:hover, #upload-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  #upload-zone.hidden { display: none; }
+
+  .upload-icon {
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-size: 20px;
+  }
+
+  .upload-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 24px;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+
+  .upload-sub { color: var(--text2); font-size: 13px; }
+  .upload-sub strong { color: var(--accent); font-weight: 400; }
+
+  #file-input { display: none; }
+
+  /* WORKSPACE */
+  #workspace { display: none; }
+  #workspace.visible { display: block; }
+
+  /* FILE BAR */
+  .file-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 1.5rem;
+    font-size: 13px;
+  }
+
+  .file-bar-left { display: flex; align-items: center; gap: 10px; color: var(--text2); }
+  .file-name { color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; }
+  .file-stats { display: flex; gap: 16px; }
+  .stat-item { color: var(--text3); font-size: 12px; }
+  .stat-item strong { color: var(--text2); }
+
+  .reset-btn {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+  }
+  .reset-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* TWO COLUMN */
+  .workspace-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  /* STEP PANEL */
+  .step-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    position: sticky;
+    top: 72px;
+  }
+
+  .step-panel-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .step-label {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.08em;
+    color: var(--text3);
+    text-transform: uppercase;
+  }
+
+  .step-counter {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text3);
+  }
+
+  .step-body { padding: 1.5rem; }
+
+  .step-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 20px;
+    line-height: 1.3;
+    margin-bottom: 0.75rem;
+    color: var(--text);
+  }
+
+  .step-rationale {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.7;
+    margin-bottom: 1.25rem;
+  }
+
+  .step-code {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-bottom: 1.25rem;
+    min-height: 60px;
+  }
+
+  .step-actions { display: flex; flex-direction: column; gap: 8px; }
+
+  .btn-approve {
+    width: 100%;
+    padding: 11px;
+    background: var(--accent);
+    color: #0e0e0f;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-approve:hover { background: var(--accent2); }
+  .btn-approve:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-deny {
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--red-dim);
+    border-radius: var(--radius);
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+  }
+
+  .btn-deny:hover { background: var(--red-dim); border-color: var(--red); }
+  .btn-deny:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* DENY FEEDBACK */
+  .deny-box {
+    display: none;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--red-dim);
+    border: 1px solid rgba(240,106,106,0.2);
+    border-radius: var(--radius);
+  }
+
+  .deny-box.visible { display: block; }
+
+  .deny-box textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    resize: none;
+    outline: none;
+    min-height: 70px;
+    line-height: 1.6;
+  }
+
+  .deny-box textarea::placeholder { color: var(--text3); }
+
+  .deny-submit {
+    margin-top: 8px;
+    padding: 7px 14px;
+    background: var(--red);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: opacity 0.15s;
+  }
+
+  .deny-submit:hover { opacity: 0.85; }
+
+  /* HISTORY TRACK */
+  .history-track {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text3);
+    padding: 4px 0;
+  }
+
+  .history-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .history-empty { font-size: 12px; color: var(--text3); font-style: italic; }
+
+  /* DATA TABLE PANEL */
+  .data-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .data-panel-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .data-panel-title {
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.06em;
+    color: var(--text3);
+    text-transform: uppercase;
+  }
+
+  .diff-legend {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text3);
+    align-items: center;
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    display: inline-block;
+    margin-right: 4px;
+  }
+
+  .search-bar {
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .search-bar input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar input::placeholder { color: var(--text3); }
+
+  .table-wrap {
+    overflow: auto;
+    max-height: 520px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  thead tr {
+    background: var(--bg3);
+  }
+
+  th {
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 500;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+  }
+
+  td {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr.changed td { background: rgba(200,240,106,0.04); }
+  td.cell-changed {
+    background: rgba(200,240,106,0.12) !important;
+    color: var(--accent) !important;
+    position: relative;
+  }
+
+  td.cell-was {
+    background: rgba(240,106,106,0.08) !important;
+    color: var(--red) !important;
+    text-decoration: line-through;
+  }
+
+  /* LOADING STATE */
+  .loading-state {
+    padding: 2rem 1.5rem;
+    text-align: center;
+  }
+
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text { font-size: 13px; color: var(--text3); }
+
+  /* ANALYSIS LOADING */
+  #analysis-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(14,14,15,0.9);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  #analysis-overlay.visible {
+    display: flex;
+  }
+
+  .analysis-spinner {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .analysis-text {
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    color: var(--text);
+  }
+
+  .analysis-sub { font-size: 13px; color: var(--text3); }
+
+  /* DONE STATE */
+  .done-state {
+    padding: 2rem 1.5rem;
+    text-align: center;
+  }
+
+  .done-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--accent-dim);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 20px;
+  }
+
+  .done-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 20px;
+    margin-bottom: 0.5rem;
+  }
+
+  .done-sub { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; }
+
+  .btn-export {
+    width: 100%;
+    padding: 11px;
+    background: var(--accent);
+    color: #0e0e0f;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    margin-bottom: 8px;
+  }
+
+  .btn-restart {
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .pagination {
+    padding: 0.75rem 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  .page-btns { display: flex; gap: 6px; }
+
+  .page-btn {
+    padding: 4px 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text2);
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    transition: all 0.15s;
+  }
+
+  .page-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* CONFIG note */
+  .config-notice {
+    background: rgba(240,184,106,0.1);
+    border: 1px solid rgba(240,184,106,0.2);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    font-size: 12px;
+    color: var(--amber);
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    line-height: 1.6;
+  }
+
+  .config-notice a { color: var(--amber); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">data<span>step</span></div>
+  <div class="format-pills">
+    <button class="pill active" data-format="excel">Excel</button>
+    <button class="pill" data-format="sql">SQL</button>
+    <button class="pill" data-format="python">Python</button>
+  </div>
+</header>
+
+<div id="analysis-overlay">
+  <div class="analysis-spinner"></div>
+  <div class="analysis-text">Analysing dataset...</div>
+  <div class="analysis-sub">Computing statistics across all rows</div>
+</div>
+
+<main>
+
+  <div class="config-notice">
+    <span>⚙</span>
+    <span>Set your Gemini API proxy URL in <code>config.js</code> before deploying. See <code>worker.js</code> for the Cloudflare Worker setup. Running locally without a key will use demo mode.</span>
+  </div>
+
+  <!-- UPLOAD -->
+  <div id="upload-zone">
+    <input type="file" id="file-input" accept=".csv">
+    <div class="upload-icon">↑</div>
+    <div class="upload-title">Drop your CSV here</div>
+    <p class="upload-sub">or click to browse &nbsp;·&nbsp; <strong>All processing is local</strong> — your data never leaves your browser</p>
+  </div>
+
+  <!-- WORKSPACE -->
+  <div id="workspace">
+
+    <div class="file-bar">
+      <div class="file-bar-left">
+        <span style="color: var(--accent); font-size: 14px;">▣</span>
+        <span class="file-name" id="file-name-display">—</span>
+        <div class="file-stats">
+          <div class="stat-item"><strong id="stat-rows">—</strong> rows</div>
+          <div class="stat-item"><strong id="stat-cols">—</strong> columns</div>
+          <div class="stat-item"><strong id="stat-nulls">—</strong> nulls</div>
+        </div>
+      </div>
+      <button class="reset-btn" id="reset-btn">✕ New file</button>
+    </div>
+
+    <div class="workspace-grid">
+
+      <!-- LEFT: STEP PANEL -->
+      <div class="step-panel">
+        <div class="step-panel-header">
+          <div class="step-label">Current step</div>
+          <div class="step-counter" id="step-counter">—</div>
+        </div>
+
+        <div id="step-loading" class="loading-state" style="display:none;">
+          <div class="spinner"></div>
+          <div class="loading-text">Generating next step...</div>
+        </div>
+
+        <div id="step-done" class="done-state" style="display:none;">
+          <div class="done-icon">✓</div>
+          <div class="done-title">Cleaning complete</div>
+          <div class="done-sub" id="done-sub">All recommended steps applied.</div>
+          <button class="btn-export" id="export-btn">Export cleaned CSV</button>
+          <button class="btn-restart" id="restart-btn">Start over</button>
+        </div>
+
+        <div id="step-content">
+          <div class="step-body">
+            <div class="step-title" id="step-title">Waiting for analysis...</div>
+            <div class="step-rationale" id="step-rationale">Upload a CSV to begin the guided cleaning process.</div>
+            <div class="step-code" id="step-code" style="display:none;"></div>
+            <div class="step-actions" id="step-actions" style="display:none;">
+              <button class="btn-approve" id="btn-approve">✓ Approve this step</button>
+              <button class="btn-deny" id="btn-deny">✗ Deny — something's wrong</button>
+              <div class="deny-box" id="deny-box">
+                <textarea id="deny-feedback" placeholder="What went wrong? Be specific — the AI will re-evaluate." rows="3"></textarea>
+                <button class="deny-submit" id="deny-submit">Re-evaluate →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-track" id="history-track">
+          <div class="history-empty">No steps approved yet.</div>
+        </div>
+      </div>
+
+      <!-- RIGHT: DATA TABLE -->
+      <div class="data-panel">
+        <div class="data-panel-header">
+          <div class="data-panel-title" id="table-mode-label">Current data</div>
+          <div class="diff-legend" id="diff-legend" style="display:none;">
+            <span><span class="legend-dot" style="background:rgba(200,240,106,0.5);"></span>changed</span>
+            <span><span class="legend-dot" style="background:rgba(240,106,106,0.3);"></span>original</span>
+          </div>
+        </div>
+        <div class="search-bar">
+          <input type="text" id="search-input" placeholder="Search all cells...">
+        </div>
+        <div class="table-wrap" id="table-wrap">
+          <div style="padding: 3rem; text-align: center; color: var(--text3); font-size: 13px;">
+            Upload a CSV to preview your data here
+          </div>
+        </div>
+        <div class="pagination">
+          <span id="page-info">—</span>
+          <div class="page-btns">
+            <button class="page-btn" id="prev-page">← prev</button>
+            <button class="page-btn" id="next-page">next →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+// Replace with your Cloudflare Worker URL after deploying worker.js
+// For local testing without a worker, set DEMO_MODE = true
+const WORKER_URL = 'https://your-worker.your-subdomain.workers.dev';
+const DEMO_MODE = true; // Set to false once worker is deployed
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let state = {
+  rawData: [],          // original parsed CSV rows
+  workingData: [],      // current in-memory data (mutated as steps apply)
+  headers: [],
+  fileName: '',
+  format: 'excel',
+  stepIndex: 0,
+  history: [],          // [{title, code}]
+  currentStep: null,    // {title, rationale, code, operation}
+  changedCells: {},     // {rowIdx: {col: {was, now}}}
+  page: 0,
+  pageSize: 50,
+  searchQuery: '',
+  conversationHistory: []
+};
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+const workspace = document.getElementById('workspace');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+document.querySelectorAll('.pill').forEach(p => {
+  p.addEventListener('click', () => {
+    document.querySelectorAll('.pill').forEach(x => x.classList.remove('active'));
+    p.classList.add('active');
+    state.format = p.dataset.format;
+  });
+});
+
+document.getElementById('reset-btn').addEventListener('click', resetAll);
+document.getElementById('restart-btn').addEventListener('click', resetAll);
+document.getElementById('btn-approve').addEventListener('click', approveStep);
+document.getElementById('btn-deny').addEventListener('click', () => {
+  document.getElementById('deny-box').classList.toggle('visible');
+});
+document.getElementById('deny-submit').addEventListener('click', denyStep);
+document.getElementById('export-btn').addEventListener('click', exportCSV);
+document.getElementById('search-input').addEventListener('input', e => {
+  state.searchQuery = e.target.value.toLowerCase();
+  state.page = 0;
+  renderTable();
+});
+document.getElementById('prev-page').addEventListener('click', () => { if (state.page > 0) { state.page--; renderTable(); } });
+document.getElementById('next-page').addEventListener('click', () => {
+  const filtered = getFilteredRows();
+  const maxPage = Math.ceil(filtered.length / state.pageSize) - 1;
+  if (state.page < maxPage) { state.page++; renderTable(); }
+});
+
+// ─── FILE PARSE ───────────────────────────────────────────────────────────────
+function handleFile(file) {
+  if (!file || !file.name.endsWith('.csv')) return alert('Please upload a CSV file.');
+  state.fileName = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    parseCSV(e.target.result);
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return alert('CSV appears empty.');
+
+  const parseRow = line => {
+    const result = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    result.push(cur.trim());
+    return result;
+  };
+
+  state.headers = parseRow(lines[0]);
+  state.rawData = lines.slice(1).filter(l => l.trim()).map(l => {
+    const vals = parseRow(l);
+    const row = {};
+    state.headers.forEach((h, i) => { row[h] = vals[i] !== undefined ? vals[i] : ''; });
+    return row;
+  });
+
+  state.workingData = state.rawData.map(r => ({ ...r }));
+  state.stepIndex = 0;
+  state.history = [];
+  state.currentStep = null;
+  state.changedCells = {};
+  state.page = 0;
+  state.conversationHistory = [];
+
+  document.getElementById('file-name-display').textContent = state.fileName;
+  document.getElementById('stat-rows').textContent = state.workingData.length.toLocaleString();
+  document.getElementById('stat-cols').textContent = state.headers.length;
+  updateNullCount();
+
+  uploadZone.classList.add('hidden');
+  workspace.classList.add('visible');
+
+  renderTable(false);
+  analyzeDataset();
+}
+
+function updateNullCount() {
+  let nulls = 0;
+  state.workingData.forEach(row => {
+    state.headers.forEach(h => { if (row[h] === '' || row[h] === null || row[h] === undefined) nulls++; });
+  });
+  document.getElementById('stat-nulls').textContent = nulls.toLocaleString();
+}
+
+// ─── STATS COMPUTATION ────────────────────────────────────────────────────────
+function computeStats() {
+  const stats = {};
+  state.headers.forEach(h => {
+    const vals = state.workingData.map(r => r[h]);
+    const nullCount = vals.filter(v => v === '' || v === null || v === undefined).length;
+    const nonNull = vals.filter(v => v !== '' && v !== null && v !== undefined);
+    const numeric = nonNull.map(v => parseFloat(v)).filter(v => !isNaN(v));
+    const unique = [...new Set(nonNull)];
+    const freq = {};
+    nonNull.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
+    const topVals = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0,5).map(([v,c]) => `${v}(${c})`);
+
+    stats[h] = {
+      nullCount,
+      uniqueCount: unique.length,
+      totalCount: vals.length,
+      sample: nonNull.slice(0, 5),
+      topValues: topVals,
+      isNumeric: numeric.length > nonNull.length * 0.7,
+      min: numeric.length ? Math.min(...numeric) : null,
+      max: numeric.length ? Math.max(...numeric) : null,
+      mean: numeric.length ? (numeric.reduce((a,b) => a+b,0) / numeric.length) : null,
+    };
+  });
+  return stats;
+}
+
+// ─── GEMINI API ───────────────────────────────────────────────────────────────
+async function callGemini(messages) {
+  if (DEMO_MODE) {
+    return await demoResponse(messages);
+  }
+  const resp = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages })
+  });
+  if (!resp.ok) throw new Error('Worker error: ' + resp.status);
+  const data = await resp.json();
+  return data.text;
+}
+
+// ─── DEMO MODE ────────────────────────────────────────────────────────────────
+const demoSteps = [
+  {
+    title: "Trim whitespace from all text columns",
+    rationale: "Several string columns contain leading/trailing spaces that will cause inconsistent matching and sorting. This should always be the first step.",
+    code_excel: '=TRIM(A2)  // Apply across all text columns via helper columns, then paste-special values',
+    code_sql: 'UPDATE table SET col = TRIM(col) WHERE col != TRIM(col);',
+    code_python: 'df = df.apply(lambda col: col.str.strip() if col.dtype == "object" else col)',
+    operation: { action: 'trim_whitespace', columns: 'all_string' }
+  },
+  {
+    title: "Standardise empty cells to null",
+    rationale: "Some blank cells contain spaces or empty strings rather than true nulls. Normalising these ensures consistent null handling in downstream steps.",
+    code_excel: '=IF(TRIM(A2)="","",A2)  // Identify then clear quasi-empty cells',
+    code_sql: "UPDATE table SET col = NULL WHERE TRIM(col) = '';",
+    code_python: "df.replace(r'^\\s*$', None, regex=True, inplace=True)",
+    operation: { action: 'normalize_nulls', columns: 'all' }
+  },
+  {
+    title: "Remove fully duplicate rows",
+    rationale: "The dataset contains rows that are identical across all columns. These are likely data entry errors or import duplicates and should be removed.",
+    code_excel: 'Data → Remove Duplicates → Select All Columns → OK',
+    code_sql: 'DELETE FROM table WHERE rowid NOT IN (SELECT MIN(rowid) FROM table GROUP BY col1, col2, ...);',
+    code_python: 'df.drop_duplicates(inplace=True)',
+    operation: { action: 'remove_duplicates', columns: 'all' }
+  },
+  {
+    title: "Standardise column headers to snake_case",
+    rationale: "Column headers contain spaces and mixed casing which causes issues in SQL and Python. Renaming to snake_case prevents downstream errors.",
+    code_excel: 'Manually rename headers: "First Name" → "first_name" etc.',
+    code_sql: 'ALTER TABLE table RENAME COLUMN "First Name" TO first_name;',
+    code_python: 'df.columns = df.columns.str.lower().str.replace(" ", "_").str.replace(r"[^a-z0-9_]", "", regex=True)',
+    operation: { action: 'snake_case_headers', columns: 'headers' }
+  },
+];
+
+let demoStepIndex = 0;
+
+async function demoResponse(messages) {
+  await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
+  const last = messages[messages.length - 1].content;
+
+  if (last.includes('DENY')) {
+    const step = demoSteps[Math.max(0, demoStepIndex - 1)];
+    return JSON.stringify({
+      title: step.title + ' (revised)',
+      rationale: 'Understood. Re-evaluated based on your feedback. The approach is the same but the scope has been adjusted to be more conservative.',
+      code: state.format === 'sql' ? step.code_sql : state.format === 'python' ? step.code_python : step.code_excel,
+      operation: step.operation,
+      done: false
+    });
+  }
+
+  if (demoStepIndex >= demoSteps.length) {
+    return JSON.stringify({ done: true, summary: `${demoSteps.length} cleaning steps applied successfully. Dataset is ready for use.` });
+  }
+
+  const step = demoSteps[demoStepIndex++];
+  return JSON.stringify({
+    title: step.title,
+    rationale: step.rationale,
+    code: state.format === 'sql' ? step.code_sql : state.format === 'python' ? step.code_python : step.code_excel,
+    operation: step.operation,
+    done: false
+  });
+}
+
+// ─── ANALYSE ──────────────────────────────────────────────────────────────────
+async function analyzeDataset() {
+  document.getElementById('analysis-overlay').classList.add('visible');
+
+  const stats = computeStats();
+  const statsText = JSON.stringify(stats, null, 2);
+
+  const systemPrompt = `You are DataStep, a precise data cleaning assistant. 
+You analyse datasets and suggest ONE cleaning step at a time.
+Always respond with valid JSON only — no markdown, no explanation outside the JSON.
+
+Response format:
+{
+  "title": "Short action title (max 8 words)",
+  "rationale": "1-2 sentences explaining why this step is needed and what it fixes.",
+  "code": "The exact ${state.format.toUpperCase()} code or formula to perform this operation",
+  "operation": { "action": "action_type", "columns": "column_name or 'all'" },
+  "done": false
+}
+
+When all cleaning is complete, respond with:
+{ "done": true, "summary": "Brief summary of what was cleaned." }
+
+Be specific. Prioritise: whitespace issues, null handling, duplicates, type inconsistencies, formatting, then structural issues.
+The format requested is: ${state.format.toUpperCase()}`;
+
+  const userMsg = `Dataset: ${state.fileName}
+Rows: ${state.workingData.length}, Columns: ${state.headers.length}
+Headers: ${state.headers.join(', ')}
+
+Column statistics:
+${statsText}
+
+Please suggest the first cleaning step.`;
+
+  state.conversationHistory = [{ role: 'user', content: userMsg }];
+
+  try {
+    const response = await callGemini(state.conversationHistory);
+    const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
+    document.getElementById('analysis-overlay').classList.remove('visible');
+    if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
+  } catch (e) {
+    document.getElementById('analysis-overlay').classList.remove('visible');
+    showError('Failed to analyse dataset. Check your worker URL or enable demo mode.');
+  }
+}
+
+// ─── STEP FLOW ────────────────────────────────────────────────────────────────
+function showStep(step) {
+  state.currentStep = step;
+  state.stepIndex++;
+
+  document.getElementById('step-counter').textContent = `step ${state.stepIndex}`;
+  document.getElementById('step-title').textContent = step.title;
+  document.getElementById('step-rationale').textContent = step.rationale;
+  document.getElementById('step-code').textContent = step.code;
+  document.getElementById('step-code').style.display = 'block';
+  document.getElementById('step-actions').style.display = 'flex';
+  document.getElementById('step-content').style.display = 'block';
+  document.getElementById('step-loading').style.display = 'none';
+  document.getElementById('step-done').style.display = 'none';
+
+  document.getElementById('deny-box').classList.remove('visible');
+  document.getElementById('deny-feedback').value = '';
+
+  // Preview: apply operation to a copy and show diff
+  showPreview(step.operation);
+}
+
+function showPreview(operation) {
+  state.changedCells = {};
+  const preview = state.workingData.map(r => ({ ...r }));
+
+  applyOperation(preview, operation, state.changedCells, state.workingData);
+
+  document.getElementById('table-mode-label').textContent = 'Preview after step';
+  document.getElementById('diff-legend').style.display = 'flex';
+
+  renderTableData(preview, true);
+}
+
+function applyOperation(data, operation, changedCells, original) {
+  const act = operation.action;
+
+  if (act === 'trim_whitespace') {
+    data.forEach((row, ri) => {
+      state.headers.forEach(h => {
+        if (typeof row[h] === 'string') {
+          const trimmed = row[h].trim();
+          if (trimmed !== row[h]) {
+            if (!changedCells[ri]) changedCells[ri] = {};
+            changedCells[ri][h] = { was: row[h], now: trimmed };
+            row[h] = trimmed;
+          }
+        }
+      });
+    });
+  } else if (act === 'normalize_nulls') {
+    data.forEach((row, ri) => {
+      state.headers.forEach(h => {
+        if (typeof row[h] === 'string' && row[h].trim() === '') {
+          if (!changedCells[ri]) changedCells[ri] = {};
+          changedCells[ri][h] = { was: row[h], now: '' };
+          row[h] = '';
+        }
+      });
+    });
+  } else if (act === 'remove_duplicates') {
+    const seen = new Set();
+    const toRemove = new Set();
+    data.forEach((row, ri) => {
+      const key = state.headers.map(h => row[h]).join('|||');
+      if (seen.has(key)) { toRemove.add(ri); }
+      else { seen.add(key); }
+    });
+    if (toRemove.size > 0) {
+      toRemove.forEach(ri => {
+        if (!changedCells[ri]) changedCells[ri] = {};
+        state.headers.forEach(h => { changedCells[ri][h] = { was: data[ri][h], now: '[DUPLICATE — will remove]' }; });
+      });
+    }
+  } else if (act === 'snake_case_headers') {
+    const newHeaders = state.headers.map(h =>
+      h.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+    );
+    data.forEach((row, ri) => {
+      const changed = {};
+      state.headers.forEach((h, i) => {
+        if (h !== newHeaders[i]) {
+          changed[h] = { was: h, now: newHeaders[i] };
+        }
+      });
+      if (Object.keys(changed).length > 0) {
+        changedCells[ri] = changed;
+      }
+    });
+  }
+}
+
+async function approveStep() {
+  if (!state.currentStep) return;
+
+  // Actually apply operation to working data
+  const changed = {};
+  applyOperation(state.workingData, state.currentStep.operation, changed, null);
+
+  if (state.currentStep.operation.action === 'remove_duplicates') {
+    const seen = new Set();
+    state.workingData = state.workingData.filter(row => {
+      const key = state.headers.map(h => row[h]).join('|||');
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+  }
+
+  if (state.currentStep.operation.action === 'snake_case_headers') {
+    const newHeaders = state.headers.map(h =>
+      h.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+    );
+    state.workingData = state.workingData.map(row => {
+      const newRow = {};
+      state.headers.forEach((h, i) => { newRow[newHeaders[i]] = row[h]; });
+      return newRow;
+    });
+    state.headers = newHeaders;
+  }
+
+  updateNullCount();
+  document.getElementById('stat-rows').textContent = state.workingData.length.toLocaleString();
+
+  state.history.push({ title: state.currentStep.title, code: state.currentStep.code });
+  renderHistory();
+
+  state.changedCells = {};
+  document.getElementById('table-mode-label').textContent = 'Current data';
+  document.getElementById('diff-legend').style.display = 'none';
+  renderTable(false);
+
+  state.conversationHistory.push({ role: 'assistant', content: JSON.stringify(state.currentStep) });
+  state.conversationHistory.push({ role: 'user', content: 'APPROVED. Please suggest the next cleaning step, or indicate done if the dataset is clean.' });
+
+  document.getElementById('step-content').style.display = 'none';
+  document.getElementById('step-loading').style.display = 'block';
+  document.getElementById('btn-approve').disabled = true;
+  document.getElementById('btn-deny').disabled = true;
+
+  try {
+    const response = await callGemini(state.conversationHistory);
+    const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
+    if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
+  } catch (e) { showError('Failed to get next step.'); }
+}
+
+async function denyStep() {
+  const feedback = document.getElementById('deny-feedback').value.trim();
+  if (!feedback) { document.getElementById('deny-feedback').focus(); return; }
+
+  document.getElementById('deny-box').classList.remove('visible');
+  document.getElementById('step-content').style.display = 'none';
+  document.getElementById('step-loading').style.display = 'block';
+
+  state.changedCells = {};
+  document.getElementById('table-mode-label').textContent = 'Current data';
+  document.getElementById('diff-legend').style.display = 'none';
+  renderTable(false);
+
+  state.conversationHistory.push({ role: 'assistant', content: JSON.stringify(state.currentStep) });
+  state.conversationHistory.push({ role: 'user', content: `DENY. Feedback: ${feedback}. Please re-evaluate and suggest a revised approach for this step.` });
+
+  try {
+    const response = await callGemini(state.conversationHistory);
+    const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
+    state.stepIndex--;
+    if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
+  } catch (e) { showError('Failed to re-evaluate step.'); }
+}
+
+function showDone(summary) {
+  document.getElementById('step-content').style.display = 'none';
+  document.getElementById('step-loading').style.display = 'none';
+  document.getElementById('step-done').style.display = 'block';
+  document.getElementById('done-sub').textContent = summary || 'All recommended steps applied.';
+  document.getElementById('step-counter').textContent = 'complete';
+}
+
+function showError(msg) {
+  document.getElementById('step-title').textContent = 'Error';
+  document.getElementById('step-rationale').textContent = msg;
+  document.getElementById('step-content').style.display = 'block';
+  document.getElementById('step-loading').style.display = 'none';
+  document.getElementById('step-code').style.display = 'none';
+  document.getElementById('step-actions').style.display = 'none';
+}
+
+// ─── TABLE RENDER ─────────────────────────────────────────────────────────────
+function getFilteredRows(data) {
+  const rows = data || state.workingData;
+  if (!state.searchQuery) return rows;
+  return rows.filter(row =>
+    state.headers.some(h => String(row[h] || '').toLowerCase().includes(state.searchQuery))
+  );
+}
+
+function renderTable(showDiff) {
+  renderTableData(state.workingData, showDiff || false);
+}
+
+function renderTableData(data, showDiff) {
+  const filtered = getFilteredRows(data);
+  const total = filtered.length;
+  const maxPage = Math.max(0, Math.ceil(total / state.pageSize) - 1);
+  if (state.page > maxPage) state.page = maxPage;
+
+  const pageRows = filtered.slice(state.page * state.pageSize, (state.page + 1) * state.pageSize);
+
+  document.getElementById('page-info').textContent =
+    `${(state.page * state.pageSize + 1).toLocaleString()}–${Math.min((state.page + 1) * state.pageSize, total).toLocaleString()} of ${total.toLocaleString()}`;
+
+  document.getElementById('prev-page').disabled = state.page === 0;
+  document.getElementById('next-page').disabled = state.page >= maxPage;
+
+  const globalStartIdx = state.page * state.pageSize;
+
+  let html = '<table><thead><tr>';
+  state.headers.forEach(h => { html += `<th>${h}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  pageRows.forEach((row, localIdx) => {
+    const globalIdx = filtered.indexOf(row);
+    const rowChanged = showDiff && state.changedCells[globalIdx];
+    html += `<tr${rowChanged ? ' class="changed"' : ''}>`;
+    state.headers.forEach(h => {
+      const cellChange = showDiff && state.changedCells[globalIdx] && state.changedCells[globalIdx][h];
+      const val = row[h] !== undefined && row[h] !== null ? row[h] : '';
+      if (cellChange) {
+        html += `<td class="cell-changed" title="Was: ${escHtml(cellChange.was)}">${escHtml(cellChange.now || val)}</td>`;
+      } else {
+        html += `<td>${escHtml(val)}</td>`;
+      }
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('table-wrap').innerHTML = html;
+}
+
+function escHtml(v) {
+  return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── HISTORY ──────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const el = document.getElementById('history-track');
+  if (!state.history.length) {
+    el.innerHTML = '<div class="history-empty">No steps approved yet.</div>';
+    return;
+  }
+  el.innerHTML = state.history.map(h =>
+    `<div class="history-item"><div class="history-dot"></div><span>${escHtml(h.title)}</span></div>`
+  ).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ─── EXPORT ───────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const rows = [state.headers.join(',')];
+  state.workingData.forEach(row => {
+    rows.push(state.headers.map(h => {
+      const v = String(row[h] || '');
+      return v.includes(',') || v.includes('"') || v.includes('\n') ? `"${v.replace(/"/g, '""')}"` : v;
+    }).join(','));
+  });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = state.fileName.replace('.csv', '_cleaned.csv');
+  a.click();
+}
+
+// ─── RESET ────────────────────────────────────────────────────────────────────
+function resetAll() {
+  state = { rawData: [], workingData: [], headers: [], fileName: '', format: state.format,
+    stepIndex: 0, history: [], currentStep: null, changedCells: {}, page: 0, pageSize: 50,
+    searchQuery: '', conversationHistory: [] };
+  demoStepIndex = 0;
+  workspace.classList.remove('visible');
+  uploadZone.classList.remove('hidden');
+  fileInput.value = '';
+  document.getElementById('search-input').value = '';
+  document.getElementById('table-wrap').innerHTML = '<div style="padding: 3rem; text-align: center; color: var(--text3); font-size: 13px;">Upload a CSV to preview your data here</div>';
+  document.getElementById('history-track').innerHTML = '<div class="history-empty">No steps approved yet.</div>';
+  document.getElementById('step-title').textContent = 'Waiting for analysis...';
+  document.getElementById('step-rationale').textContent = 'Upload a CSV to begin the guided cleaning process.';
+  document.getElementById('step-code').style.display = 'none';
+  document.getElementById('step-actions').style.display = 'none';
+  document.getElementById('step-content').style.display = 'block';
+  document.getElementById('step-done').style.display = 'none';
+  document.getElementById('step-loading').style.display = 'none';
+  document.getElementById('step-counter').textContent = '—';
+  document.getElementById('btn-approve').disabled = false;
+  document.getElementById('btn-deny').disabled = false;
+  document.getElementById('diff-legend').style.display = 'none';
+  document.getElementById('table-mode-label').textContent = 'Current data';
+}
+</script>
+</body>
+</html>
