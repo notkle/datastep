@@ -53,7 +53,7 @@
   .logo { font-family: 'Instrument Serif', serif; font-size: 22px; letter-spacing: -0.02em; }
   .logo span { color: var(--accent); }
 
-  main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  main { max-width: 1200px; margin: 0 auto; padding: 2rem; overflow: hidden; }
 
   /* UPLOAD */
   #upload-zone {
@@ -110,13 +110,14 @@
 
   /* WORKSPACE */
   #workspace { display: none; }
-  #workspace.visible { display: block; }
+  #workspace.visible { display: block; min-width: 0; }
 
   .file-bar {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 16px;
     background: var(--bg2); border: 1px solid var(--border);
     border-radius: var(--radius); margin-bottom: 1.5rem; font-size: 13px;
+    width: 100%;
   }
   .file-bar-left { display: flex; align-items: center; gap: 10px; }
   .file-name { color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; }
@@ -134,6 +135,7 @@
     display: grid;
     grid-template-columns: 360px 1fr;
     gap: 1.5rem; align-items: start;
+    min-width: 0;
   }
 
   /* STEP PANEL */
@@ -142,6 +144,7 @@
     border-radius: var(--radius-lg); overflow: hidden;
     position: sticky; top: 72px;
     display: flex; flex-direction: column;
+    min-width: 0;
   }
   .step-panel-header {
     padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
@@ -299,6 +302,7 @@
   .data-panel {
     background: var(--bg2); border: 1px solid var(--border);
     border-radius: var(--radius-lg); overflow: hidden;
+    min-width: 0;
   }
   .data-panel-header {
     padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
@@ -592,8 +596,6 @@
                 <button class="btn-copy" id="btn-copy-fix" onclick="copyFix()">⎘ Copy fix</button>
               </div>
 
-              <div style="flex:1;min-height:1rem;"></div>
-
               <!-- CLAUDE PATH: prompt -->
               <div id="claude-path" style="display:none;">
                 <button class="btn-copy" id="btn-copy" onclick="copyPrompt()">⎘ Copy prompt for Claude</button>
@@ -674,7 +676,6 @@
 
       <!-- LOG BAR — matches spreadsheet width -->
       <div>
-        <div id="log-notes" style="display:none;margin-bottom:8px;flex-direction:column;gap:6px;"></div>
         <div style="display:flex;gap:8px;align-items:center;">
           <input type="text" id="log-input" placeholder="Add a note about this session..." style="
             flex:1;background:var(--bg2);border:1px solid var(--border);
@@ -689,6 +690,7 @@
             font-family:'DM Sans',sans-serif;transition:all 0.15s;white-space:nowrap;
           " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">+ Add note</button>
         </div>
+        <div id="log-notes" style="display:none;margin-top:8px;flex-direction:column;gap:6px;"></div>
       </div>
 
       </div><!-- end data+log wrapper -->
@@ -2005,7 +2007,7 @@ function toggleExpand() {
           <span style="position:absolute;left:0;color:var(--accent);">·</span>${escHtml(b)}
         </li>`
       ).join('');
-      ctx.style.display = bullets.length ? 'block' : 'none';
+      ctx.style.display = 'block';
     } else {
       ctx.style.display = 'none';
     }
