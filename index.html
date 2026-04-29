@@ -435,7 +435,7 @@
 <body>
 
 <header>
-  <div class="logo" onclick="if(state.workingData.length) resetAll()" style="cursor:pointer;" title="Back to start">data<span>step</span></div>
+  <div class="logo" onclick="if(state.workingData.length){ if(confirm('Return to the start? Your current session and any unsaved notes will be cleared.')) resetAll(); } " style="cursor:pointer;" title="Back to start">data<span>step</span></div>
 </header>
 
 <!-- FORMAT SELECTION OVERLAY -->
@@ -592,12 +592,16 @@
                 <button class="btn-copy" id="btn-copy-fix" onclick="copyFix()">⎘ Copy fix</button>
               </div>
 
+              <div style="flex:1;min-height:1rem;"></div>
+
               <!-- CLAUDE PATH: prompt -->
               <div id="claude-path" style="display:none;">
                 <button class="btn-copy" id="btn-copy" onclick="copyPrompt()">⎘ Copy prompt for Claude</button>
                 <button class="btn-view-prompt" id="btn-view-prompt" onclick="togglePrompt()">▾ View full prompt</button>
                 <div class="prompt-box" id="prompt-box" style="display:none;"></div>
               </div>
+
+              <div style="flex:1;"></div>
 
               <div class="step-nav">
                 <button class="btn-nav" id="btn-prev" onclick="navigateStep(-1)">←</button>
@@ -668,9 +672,7 @@
         </div>
       </div>
 
-      </div>
-
-      <!-- LOG BAR -->
+      <!-- LOG BAR — matches spreadsheet width -->
       <div>
         <div id="log-notes" style="display:none;margin-bottom:8px;flex-direction:column;gap:6px;"></div>
         <div style="display:flex;gap:8px;align-items:center;">
