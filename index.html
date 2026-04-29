@@ -133,8 +133,6 @@
   .upload-sub { color: var(--text2); font-size: 13px; }
   .upload-sub strong { color: var(--accent); font-weight: 400; }
 
-  #file-input { display: none; }
-
   /* WORKSPACE */
   #workspace { display: none; }
   #workspace.visible { display: block; }
@@ -637,12 +635,12 @@
 
 
   <!-- UPLOAD -->
-  <label id="upload-zone" for="file-input">
-    <input type="file" id="file-input" accept=".csv">
+  <input type="file" id="file-input" accept=".csv" style="display:none;">
+  <div id="upload-zone" onclick="document.getElementById('file-input').click()">
     <div class="upload-icon">↑</div>
     <div class="upload-title">Drop your CSV here</div>
     <p class="upload-sub">or click to browse &nbsp;·&nbsp; <strong>All processing is local</strong> — your data never leaves your browser</p>
-  </label>
+  </div>
 
   <!-- WORKSPACE -->
   <div id="workspace">
