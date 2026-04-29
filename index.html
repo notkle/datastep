@@ -854,11 +854,11 @@ const uploadZone = document.getElementById('upload-zone');
 const fileInput = document.getElementById('file-input');
 const workspace = document.getElementById('workspace');
 
-uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
 uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
-fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 
 document.querySelectorAll('.pill').forEach(p => {
   p.addEventListener('click', () => {
@@ -973,58 +973,36 @@ function updateNullCount() {
 }
 
 // ─── FORMAT RECOMMENDATION ────────────────────────────────────────────────────
-async function showFormatRecommendation() {
+function showFormatRecommendation() {
   const rec = document.getElementById('format-recommendation');
   const sub = document.getElementById('format-rec-sub');
   const note = document.getElementById('format-rec-note');
   rec.classList.add('visible');
-  sub.textContent = 'Analysing your dataset to recommend the best format...';
 
-  // Quick heuristic analysis
   const stats = computeStats();
   const rowCount = state.workingData.length;
   const colCount = state.headers.length;
   const numericCols = Object.values(stats).filter(s => s.isNumeric).length;
-  const hasNulls = Object.values(stats).some(s => s.nullCount > 0 || s.blankCount > 0);
 
-  // Ask Gemini for a recommendation
   let recommended = 'excel';
   let reasoning = '';
   let switchNote = '';
 
-  try {
-    const prompt = `You are a data engineering advisor. Given this dataset profile, recommend the best cleaning format.
-
-Dataset: ${state.fileName}
-Rows: ${rowCount}, Columns: ${colCount}
-Numeric columns: ${numericCols}/${colCount}
-Headers: ${state.headers.join(', ')}
-Has nulls/blanks: ${hasNulls}
-
-Choose ONE primary format from: excel, sql, python.
-Also indicate if a secondary format should be used partway through (e.g. start with python for bulk ops, finish in excel for review).
-
-Respond with JSON only:
-{
-  "primary": "excel|sql|python",
-  "secondary": "excel|sql|python|null",
-  "reasoning": "2-3 sentences explaining why, referencing specifics of this dataset",
-  "switch_note": "If secondary is not null: one sentence on when to switch and why. Otherwise empty string."
-}`;
-
-    const resp = await callGemini([{ role: 'user', content: prompt }]);
-    const parsed = JSON.parse(resp.replace(/```json|```/g, '').trim());
-    recommended = parsed.primary || 'excel';
-    reasoning = parsed.reasoning || '';
-    switchNote = parsed.switch_note || '';
-  } catch (e) {
-    // fallback heuristic
-    if (rowCount > 5000) { recommended = 'python'; reasoning = 'Large dataset — Python/pandas handles bulk operations most efficiently.'; }
-    else if (numericCols > colCount * 0.6) { recommended = 'sql'; reasoning = 'Predominantly numeric columns suggest this data is headed for a database.'; }
-    else { recommended = 'excel'; reasoning = 'Moderate size and mixed column types make Excel formulas the most accessible approach.'; }
+  if (rowCount > 10000) {
+    recommended = 'python';
+    reasoning = `Large dataset (${rowCount.toLocaleString()} rows) — Python/pandas handles bulk operations most efficiently and reliably at this scale.`;
+    switchNote = 'Consider exporting to Excel at the end for final review.';
+  } else if (numericCols > colCount * 0.6) {
+    recommended = 'sql';
+    reasoning = `${numericCols} of ${colCount} columns are numeric, suggesting this data is destined for a relational database. SQL operations will translate most directly.`;
+  } else if (rowCount > 2000) {
+    recommended = 'python';
+    reasoning = `Moderate-to-large dataset (${rowCount.toLocaleString()} rows) with mixed column types. Python gives you more control and reproducibility than Excel at this size.`;
+  } else {
+    recommended = 'excel';
+    reasoning = `Smaller dataset (${rowCount.toLocaleString()} rows) with mixed column types — Excel formulas are the most accessible and immediately applicable approach.`;
   }
 
-  // Update UI
   state.format = recommended;
   sub.textContent = reasoning;
   note.textContent = switchNote;
@@ -1034,7 +1012,6 @@ Respond with JSON only:
     document.getElementById(`badge-${f}`).style.display = f === recommended ? 'inline' : 'none';
   });
 
-  // Sync header pills
   document.querySelectorAll('.pill').forEach(p => {
     p.classList.toggle('active', p.dataset.format === recommended);
   });
@@ -1049,10 +1026,7 @@ function selectFormat(format) {
   document.querySelectorAll('.pill').forEach(p => {
     p.classList.toggle('active', p.dataset.format === format);
   });
-
-  // Hide rec panel and start analysis — small delay to avoid 429 from concurrent calls
   document.getElementById('format-recommendation').classList.remove('visible');
-  await new Promise(r => setTimeout(r, 1500));
   analyzeDataset();
 }
 
