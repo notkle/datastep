@@ -1050,8 +1050,9 @@ function selectFormat(format) {
     p.classList.toggle('active', p.dataset.format === format);
   });
 
-  // Hide rec panel and start analysis
+  // Hide rec panel and start analysis — small delay to avoid 429 from concurrent calls
   document.getElementById('format-recommendation').classList.remove('visible');
+  await new Promise(r => setTimeout(r, 1500));
   analyzeDataset();
 }
 
@@ -1088,18 +1089,28 @@ function computeStats() {
 }
 
 // ─── GEMINI API ───────────────────────────────────────────────────────────────
-async function callGemini(messages) {
+async function callGemini(messages, retries = 3) {
   if (DEMO_MODE) {
     return await demoResponse(messages);
   }
-  const resp = await fetch(WORKER_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages })
-  });
-  if (!resp.ok) throw new Error('Worker error: ' + resp.status);
-  const data = await resp.json();
-  return data.text;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    if (attempt > 0) {
+      // Exponential backoff: 2s, 4s
+      await new Promise(r => setTimeout(r, 2000 * attempt));
+    }
+    const resp = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages })
+    });
+    if (resp.status === 429) {
+      if (attempt === retries - 1) throw new Error('Rate limited after retries');
+      continue; // retry
+    }
+    if (!resp.ok) throw new Error('Worker error: ' + resp.status);
+    const data = await resp.json();
+    return data.text;
+  }
 }
 
 // ─── DEMO MODE ────────────────────────────────────────────────────────────────
