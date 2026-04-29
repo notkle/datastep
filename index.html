@@ -470,6 +470,11 @@
     text-decoration: line-through;
   }
 
+  td.cell-null {
+    color: var(--text3) !important;
+    font-style: italic;
+  }
+
   /* LOADING STATE */
   .loading-state {
     padding: 2rem 1.5rem;
@@ -966,8 +971,13 @@ function updateNullCount() {
   state.workingData.forEach(row => {
     state.headers.forEach(h => {
       const v = row[h];
-      if (isTrueNull(v)) { trueNulls++; }
-      else if (isBlank(v)) { blanks++; }
+      if (isTrueNull(v)) {
+        trueNulls++;
+      } else if (typeof v === 'string' && v.trim().toLowerCase() === 'null') {
+        trueNulls++; // NULL strings count as nulls
+      } else if (typeof v === 'string' && v.trim() === '') {
+        blanks++; // empty strings count as empty
+      }
     });
   });
   document.getElementById('stat-nulls').textContent = trueNulls.toLocaleString();
@@ -1443,6 +1453,12 @@ function renderTableData(data, showDiff) {
       const val = row[h] !== undefined && row[h] !== null ? row[h] : '';
       if (cellChange) {
         html += `<td class="cell-changed" title="Was: ${escHtml(cellChange.was)}">${escHtml(cellChange.now || val)}</td>`;
+      } else if (isTrueNull(val)) {
+        html += `<td style="color:var(--red);font-style:italic;opacity:0.6;">null</td>`;
+      } else if (typeof val === 'string' && val.trim().toLowerCase() === 'null') {
+        html += `<td style="color:var(--red);font-style:italic;opacity:0.6;">NULL</td>`;
+      } else if (typeof val === 'string' && val.trim() === '') {
+        html += `<td style="color:var(--text3);font-style:italic;">(empty)</td>`;
       } else {
         html += `<td>${escHtml(val)}</td>`;
       }
