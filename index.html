@@ -53,7 +53,7 @@
   .logo { font-family: 'Instrument Serif', serif; font-size: 22px; letter-spacing: -0.02em; }
   .logo span { color: var(--accent); }
 
-  main { max-width: 1200px; margin: 0 auto; padding: 2rem; overflow: hidden; }
+  main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
 
   /* UPLOAD */
   #upload-zone {
@@ -110,7 +110,7 @@
 
   /* WORKSPACE */
   #workspace { display: none; }
-  #workspace.visible { display: block; min-width: 0; }
+  #workspace.visible { display: block; overflow-x: hidden; }
 
   .file-bar {
     display: flex; align-items: center; justify-content: space-between;
@@ -577,17 +577,17 @@
             <div class="step-title" id="step-title">Upload a CSV to begin</div>
             <div class="step-rationale" id="step-rationale">DataStep will analyze your dataset and generate a step-by-step cleaning guide with prompts to paste into Claude.</div>
 
-            <div class="watchout-box" id="watchout-box">
-              <div class="watchout-label">Before you apply this</div>
-              <ul id="watchout-list"></ul>
-            </div>
-
-            <div class="issue-summary" id="issue-summary">
-              <div class="issue-summary-label">The issue in brief</div>
-              <ul id="issue-summary-list"></ul>
-            </div>
-
             <div class="step-actions" id="step-actions" style="display:none;">
+
+              <div class="watchout-box" id="watchout-box">
+                <div class="watchout-label">Before you apply this</div>
+                <ul id="watchout-list"></ul>
+              </div>
+
+              <div class="issue-summary" id="issue-summary">
+                <div class="issue-summary-label">The issue in brief</div>
+                <ul id="issue-summary-list"></ul>
+              </div>
 
               <!-- DETERMINISTIC PATH: direct fix -->
               <div id="fix-path" style="display:none;">
