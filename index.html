@@ -1063,31 +1063,22 @@ function computeStats() {
 }
 
 // ─── GEMINI API ───────────────────────────────────────────────────────────────
-async function callGemini(messages, retries = 4) {
+async function callGemini(messages) {
   if (DEMO_MODE) {
     return await demoResponse(messages);
   }
-  const backoffs = [0, 5000, 15000, 30000]; // 0s, 5s, 15s, 30s
-  for (let attempt = 0; attempt < retries; attempt++) {
-    if (backoffs[attempt] > 0) {
-      const secs = backoffs[attempt] / 1000;
-      document.getElementById('analysis-sub').textContent = `Rate limit hit — retrying in ${secs}s...`;
-      await new Promise(r => setTimeout(r, backoffs[attempt]));
-      document.getElementById('analysis-sub').textContent = 'Computing statistics across all rows';
-    }
-    const resp = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages })
-    });
-    if (resp.status === 429) {
-      if (attempt === retries - 1) throw new Error('Rate limited — please wait a minute and try again.');
-      continue;
-    }
-    if (!resp.ok) throw new Error('Worker error: ' + resp.status);
-    const data = await resp.json();
-    return data.text;
+  const resp = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages })
+  });
+  if (!resp.ok) throw new Error('Worker HTTP error: ' + resp.status);
+  const data = await resp.json();
+  // New worker returns 200 even for Gemini errors — check for error field
+  if (data.error) {
+    throw new Error('Gemini: ' + (data.detail || data.error));
   }
+  return data.text;
 }
 
 // ─── DEMO MODE ────────────────────────────────────────────────────────────────
@@ -1201,7 +1192,7 @@ Suggest the first cleaning step.`;
     if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
   } catch (e) {
     document.getElementById('analysis-overlay').classList.remove('visible');
-    showError(e.message.includes('Rate limited') ? 'Rate limit reached — wait 60 seconds and try again.' : 'Failed to analyse dataset. Check your worker URL.');
+    showError(e.message || 'Unknown error — check browser console.');
   }
 }
 
