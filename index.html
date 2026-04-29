@@ -1104,19 +1104,32 @@ function countdownRetry(seconds) {
 // ─── JSON EXTRACTION ──────────────────────────────────────────────────────────
 function extractJSON(text) {
   if (!text) throw new Error('Empty response from API');
-  // Strip markdown fences
   let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  // If it starts with a { or [ we're good
   if (cleaned.startsWith('{') || cleaned.startsWith('[')) {
     return JSON.parse(cleaned);
   }
-  // Otherwise find the first { and last } and extract
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   if (start !== -1 && end !== -1) {
     return JSON.parse(cleaned.slice(start, end + 1));
   }
-  throw new Error('No JSON found in response: ' + cleaned.slice(0, 100));
+  throw new Error('NOT_JSON:' + cleaned.slice(0, 200));
+}
+
+async function extractJSONWithCorrection(text, conversationHistory) {
+  try {
+    return extractJSON(text);
+  } catch (e) {
+    if (!e.message.startsWith('NOT_JSON:')) throw e;
+    // Gemini returned plain text — ask it to reformat as JSON
+    const correctionHistory = [
+      ...conversationHistory,
+      { role: 'assistant', content: text },
+      { role: 'user', content: 'Your response was not valid JSON. Please restate your answer as a JSON object only, starting with { and ending with }. No prose or explanation.' }
+    ];
+    const corrected = await callGemini(correctionHistory);
+    return extractJSON(corrected);
+  }
 }
 const demoSteps = [
   {
@@ -1231,16 +1244,20 @@ async function analyzeDataset() {
     };
   });
 
-  const systemMsg = `You are DataStep, a data cleaning assistant. Suggest ONE cleaning step at a time. Respond with valid JSON only — no markdown.
+  const systemMsg = `You are DataStep, a data cleaning assistant. You MUST respond with a single valid JSON object only. No prose, no explanation, no markdown fences. Your entire response must start with { and end with }. Any response that is not pure JSON will be rejected.
 
-IMPORTANT: The user has chosen ${state.format.toUpperCase()} format. ALL code suggestions must be ${state.format.toUpperCase()} only. Do not suggest code in any other language.
+The user has chosen ${state.format.toUpperCase()} format. ALL code must be ${state.format.toUpperCase()} only.
 
-TERMINOLOGY: In the dataset stats, "null_count" means cells containing the string "NULL" or true null values. "empty_string_count" means genuinely empty cells with no content. Always refer to null_count values as "nulls", never "blanks" or "empty strings".
+TERMINOLOGY: "null_count" = cells with NULL string or true nulls. "empty_string_count" = genuinely empty cells. Call null_count values "nulls", never "blanks".
 
-Step format: {"title":"max 8 words","rationale":"1-2 sentences explaining the issue","steps":["Step 1 instruction","Step 2 instruction","Step 3 instruction"],"code":"exact ${state.format.toUpperCase()} code","operation":{"action":"action_type","columns":"column or all"},"done":false}
-The "steps" array should be 2-4 short, numbered action items the user should take. Be specific and concrete.
-When finished: {"done":true,"summary":"brief summary"}
-Priority: whitespace → nulls → duplicates → type issues → formatting → structure.`;
+JSON format for a step:
+{"title":"max 8 words","rationale":"1-2 sentences","steps":["action 1","action 2","action 3"],"code":"exact ${state.format.toUpperCase()} code","operation":{"action":"action_type","columns":"column_name or all"},"done":false}
+
+JSON format when all cleaning is complete:
+{"done":true,"summary":"brief summary"}
+
+Priority order: whitespace → nulls → duplicates → type issues → formatting → structure.
+REMEMBER: Respond with JSON only. Start your response with {`;
 
   const userMsg = `Dataset: ${state.fileName} | Rows: ${state.workingData.length} | Cols: ${state.headers.length} | Format: ${state.format.toUpperCase()}
 Headers: ${state.headers.join(', ')}
@@ -1253,7 +1270,7 @@ Suggest the first cleaning step using ${state.format.toUpperCase()} only.`;
 
   try {
     const response = await callGemini(state.conversationHistory, 3, state.systemContext);
-    const parsed = extractJSON(response);
+    const parsed = await extractJSONWithCorrection(response, state.conversationHistory);
     clearInterval(msgInterval);
     document.getElementById('analysis-overlay').classList.remove('visible');
     if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
@@ -1449,7 +1466,7 @@ async function approveStep() {
 
   try {
     const response = await callGemini(state.conversationHistory, 3, state.systemContext);
-    const parsed = extractJSON(response);
+    const parsed = await extractJSONWithCorrection(response, state.conversationHistory);
     if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
   } catch (e) { showError(e.message || 'Failed to get next step.'); }
 }
@@ -1473,7 +1490,7 @@ async function denyStep() {
 
   try {
     const response = await callGemini(state.conversationHistory, 3, state.systemContext);
-    const parsed = extractJSON(response);
+    const parsed = await extractJSONWithCorrection(response, state.conversationHistory);
     state.stepIndex--;
     if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
   } catch (e) { showError('Failed to re-evaluate step.'); }
