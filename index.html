@@ -1000,19 +1000,16 @@ function showFormatRecommendation() {
   let reasoning = '';
   let switchNote = '';
 
-  if (rowCount > 10000) {
+  if (rowCount > 50000) {
     recommended = 'python';
-    reasoning = `Large dataset (${rowCount.toLocaleString()} rows) — Python/pandas handles bulk operations most efficiently and reliably at this scale.`;
+    reasoning = `Very large dataset (${rowCount.toLocaleString()} rows) — Python/pandas handles bulk operations most efficiently at this scale.`;
     switchNote = 'Consider exporting to Excel at the end for final review.';
   } else if (numericCols > colCount * 0.6) {
     recommended = 'sql';
     reasoning = `${numericCols} of ${colCount} columns are numeric, suggesting this data is destined for a relational database. SQL operations will translate most directly.`;
-  } else if (rowCount > 2000) {
-    recommended = 'python';
-    reasoning = `Moderate-to-large dataset (${rowCount.toLocaleString()} rows) with mixed column types. Python gives you more control and reproducibility than Excel at this size.`;
   } else {
     recommended = 'excel';
-    reasoning = `Smaller dataset (${rowCount.toLocaleString()} rows) with mixed column types — Excel formulas are the most accessible and immediately applicable approach.`;
+    reasoning = `Mixed column types and manageable size — Excel formulas are the most accessible and immediately applicable approach.`;
   }
 
   state.format = recommended;
@@ -1200,14 +1197,16 @@ async function analyzeDataset() {
 
   const systemMsg = `You are DataStep, a data cleaning assistant. Suggest ONE cleaning step at a time. Respond with valid JSON only — no markdown.
 
+IMPORTANT: The user has chosen ${state.format.toUpperCase()} format. ALL code suggestions must be ${state.format.toUpperCase()} only. Do not suggest code in any other language.
+
 Step format: {"title":"max 8 words","rationale":"1-2 sentences","code":"exact ${state.format.toUpperCase()} code","operation":{"action":"action_type","columns":"column or all"},"done":false}
 When finished: {"done":true,"summary":"brief summary"}
 Priority: whitespace → nulls → duplicates → type issues → formatting → structure.`;
 
-  const userMsg = `Dataset: ${state.fileName} | Rows: ${state.workingData.length} | Cols: ${state.headers.length}
+  const userMsg = `Dataset: ${state.fileName} | Rows: ${state.workingData.length} | Cols: ${state.headers.length} | Format: ${state.format.toUpperCase()}
 Headers: ${state.headers.join(', ')}
 Stats: ${JSON.stringify(slimStats)}
-Suggest the first cleaning step.`;
+Suggest the first cleaning step using ${state.format.toUpperCase()} only.`;
 
   // Store system context separately — only sent once, not repeated in history
   state.systemContext = systemMsg;
