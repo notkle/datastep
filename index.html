@@ -100,6 +100,8 @@
     transition: all 0.2s;
     background: var(--bg2);
     margin-bottom: 2rem;
+    position: relative;
+    z-index: 1;
   }
 
   #upload-zone:hover, #upload-zone.drag-over {
@@ -860,6 +862,14 @@ let state = {
 const uploadZone = document.getElementById('upload-zone');
 const fileInput = document.getElementById('file-input');
 const workspace = document.getElementById('workspace');
+
+window.addEventListener('beforeunload', e => {
+  if (state.workingData.length > 0) {
+    e.preventDefault();
+    e.returnValue = 'Your data will be cleared if you leave. Export your CSV first if needed.';
+    return e.returnValue;
+  }
+});
 
 uploadZone.addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
