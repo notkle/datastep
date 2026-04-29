@@ -635,8 +635,8 @@
 
 
   <!-- UPLOAD -->
-  <input type="file" id="file-input" accept=".csv" style="display:none;">
-  <div id="upload-zone" onclick="document.getElementById('file-input').click()">
+  <div id="upload-zone">
+    <input type="file" id="file-input" accept=".csv" style="display:none;">
     <div class="upload-icon">↑</div>
     <div class="upload-title">Drop your CSV here</div>
     <p class="upload-sub">or click to browse &nbsp;·&nbsp; <strong>All processing is local</strong> — your data never leaves your browser</p>
@@ -759,6 +759,8 @@ let state = {
 };
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+
 const uploadZone = document.getElementById('upload-zone');
 const fileInput = document.getElementById('file-input');
 const workspace = document.getElementById('workspace');
@@ -771,6 +773,7 @@ window.addEventListener('beforeunload', e => {
   }
 });
 
+uploadZone.addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
 uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
@@ -1468,6 +1471,8 @@ function resetAll() {
   document.getElementById('diff-legend').style.display = 'none';
   document.getElementById('table-mode-label').textContent = 'Current data';
 }
+
+}); // end DOMContentLoaded
 </script>
 </body>
 </html>
