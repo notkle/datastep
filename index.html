@@ -141,15 +141,26 @@
     background: var(--bg2); border: 1px solid var(--border);
     border-radius: var(--radius-lg); overflow: hidden;
     position: sticky; top: 72px;
+    display: flex; flex-direction: column;
   }
   .step-panel-header {
     padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
   }
   .step-label { font-size: 11px; font-family: 'DM Mono', monospace; letter-spacing: 0.08em; color: var(--text3); text-transform: uppercase; }
   .step-counter { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text3); }
 
-  .step-body { padding: 1.5rem; }
+  .step-body {
+    padding: 1.5rem;
+    display: flex; flex-direction: column;
+  }
+
+  .step-actions {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-top: auto;
+    padding-top: 1rem;
+  }
 
   .step-title { font-family: 'Instrument Serif', serif; font-size: 20px; line-height: 1.3; margin-bottom: 0.5rem; }
 
@@ -230,7 +241,6 @@
     font-size: 9px; color: var(--amber); top: 1px;
   }
 
-  .step-actions { display: flex; flex-direction: column; gap: 8px; }
 
   .btn-complete {
     width: 100%; padding: 11px;
@@ -255,6 +265,7 @@
     padding: 1rem 1.5rem; border-top: 1px solid var(--border);
     display: flex; flex-direction: column; gap: 6px;
     max-height: 180px; overflow-y: auto;
+    flex-shrink: 0;
   }
   .history-item {
     display: flex; align-items: center; gap: 8px;
@@ -394,6 +405,28 @@
   }
   .btn-view-prompt:hover { border-color: var(--border2); color: var(--text2); }
 
+  /* LOG NOTES */
+  .log-note {
+    display:flex;align-items:flex-start;gap:8px;
+    padding:8px 12px;
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);font-size:13px;color:var(--text2);
+    line-height:1.5;transition:border-color 0.15s;
+  }
+  .log-note.favorited {
+    border-color:var(--amber);background:rgba(240,184,106,0.06);
+  }
+  .log-note-text { flex:1; }
+  .log-note-time { font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;white-space:nowrap;margin-top:2px; }
+  .log-note-actions { display:flex;gap:4px;flex-shrink:0; }
+  .log-note-btn {
+    background:transparent;border:none;cursor:pointer;
+    font-size:12px;color:var(--text3);padding:2px 4px;
+    border-radius:4px;transition:all 0.15s;line-height:1;
+  }
+  .log-note-btn:hover { color:var(--text2); }
+  .log-note-btn.fav-active { color:var(--amber); }
+
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
@@ -449,7 +482,20 @@
     transition:transform 0.2s ease, opacity 0.2s ease;
   ">
     <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-      <div style="font-size:12px;font-family:'DM Mono',monospace;letter-spacing:0.06em;color:var(--text3);text-transform:uppercase;" id="expand-mode-label">Dataset preview</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:12px;font-family:'DM Mono',monospace;letter-spacing:0.06em;color:var(--text3);text-transform:uppercase;" id="expand-mode-label">Dataset preview</div>
+        <button id="expand-affected-toggle" onclick="toggleAffectedFilter(true)" style="
+          display:none;
+          background:rgba(200,240,106,0.12);
+          border:1px solid rgba(200,240,106,0.3);
+          border-radius:4px;padding:2px 8px;font-size:11px;color:var(--accent);
+          cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.15s;
+          align-items:center;gap:5px;
+        ">
+          <span style="width:8px;height:8px;border-radius:2px;background:rgba(200,240,106,0.5);display:inline-block;"></span>
+          <span id="expand-affected-label">show affected only</span>
+        </button>
+      </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <input type="text" id="expand-search" placeholder="Search all cells..." style="
           background:var(--bg3);border:1px solid var(--border);border-radius:6px;
@@ -611,6 +657,26 @@
       </div>
 
     </div>
+
+    <!-- LOG BAR -->
+    <div style="margin-top:1.5rem;">
+      <div id="log-notes" style="display:none;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;"></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="log-input" placeholder="Add a note about this session..." style="
+          flex:1;background:var(--bg2);border:1px solid var(--border);
+          border-radius: var(--radius);padding:9px 14px;
+          color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;
+          outline:none;transition:border-color 0.15s;
+        " onkeydown="if(event.key==='Enter')addLogNote()" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+        <button onclick="addLogNote()" style="
+          padding:9px 16px;background:var(--bg2);
+          border:1px solid var(--border2);border-radius:var(--radius);
+          color:var(--text2);font-size:13px;cursor:pointer;
+          font-family:'DM Sans',sans-serif;transition:all 0.15s;white-space:nowrap;
+        " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">+ Add note</button>
+      </div>
+    </div>
+
   </div>
 </main>
 
@@ -627,6 +693,8 @@ let state = {
   visited: new Set(),
   changedCells: {},
   affectedFilterActive: false,
+  sortCol: null,
+  sortDir: null, // 'asc' | 'desc' | null
   page: 0,
   pageSize: 50,
   searchQuery: '',
@@ -669,7 +737,31 @@ function selectFormat(format) {
   state.format = format;
   document.getElementById('format-overlay').classList.remove('visible');
   buildSteps();
+  measureStepHeights();
   showStep(0);
+}
+
+function measureStepHeights() {
+  if (!state.steps.length) return;
+
+  const body = document.getElementById('step-content').querySelector('.step-body');
+  if (!body) return;
+
+  // Remove any previously set min-height
+  body.style.minHeight = '';
+
+  // Render each step, measure, restore
+  const originalIndex = state.stepIndex;
+  let maxHeight = 0;
+
+  state.steps.forEach((_, i) => {
+    showStep(i);
+    const h = body.scrollHeight;
+    if (h > maxHeight) maxHeight = h;
+  });
+
+  // Restore original (will be overwritten by showStep(0) after this)
+  body.style.minHeight = maxHeight + 'px';
 }
 
 // ─── FILE PARSE ───────────────────────────────────────────────────────────────
@@ -805,6 +897,29 @@ function computeStats() {
     const zeroCount = numeric.filter(v => v === 0).length;
     const hasZeros = numeric.length > nonMissing.length * 0.7 && zeroCount > 0 && zeroCount < nonMissing.length * 0.5;
 
+    // Mixed types — column has both numeric and non-numeric non-missing values
+    const nonNumericNonMissing = nonMissing.filter(v => isNaN(parseFloat(v)));
+    const hasMixedTypes = nonNumericNonMissing.length > 0 && numeric.length > 0 &&
+      nonNumericNonMissing.length / nonMissing.length > 0.05 &&
+      numeric.length / nonMissing.length > 0.05;
+    const mixedSample = nonNumericNonMissing.slice(0, 3);
+
+    // Zero variance — only one unique value
+    const hasZeroVariance = unique.length === 1 && nonMissing.length > 0;
+
+    // Outliers — values > 3 std devs from mean in numeric columns
+    let outlierCount = 0;
+    let outlierSample = [];
+    if (numeric.length > 10) {
+      const mean2 = numeric.reduce((a, b) => a + b, 0) / numeric.length;
+      const std = Math.sqrt(numeric.reduce((a, b) => a + (b - mean2) ** 2, 0) / numeric.length);
+      if (std > 0) {
+        const outliers = numeric.filter(v => Math.abs(v - mean2) > 3 * std);
+        outlierCount = outliers.length;
+        outlierSample = outliers.slice(0, 3).map(String);
+      }
+    }
+
     stats[h] = {
       nullCount, blankCount,
       uniqueCount: unique.length,
@@ -821,6 +936,9 @@ function computeStats() {
       validSample, uniqueWithCounts, uniqueSample: unique.slice(0, 10),
       hasSentinels, sentinelCounts, sentinelSample, totalSentinels,
       hasZeros, zeroCount,
+      hasMixedTypes, mixedSample,
+      hasZeroVariance,
+      outlierCount, outlierSample,
     };
   });
 
@@ -925,6 +1043,42 @@ function buildSteps() {
         column: h,
         count: c[h].zeroCount,
         pct: c[h].pct(c[h].zeroCount),
+        min: c[h].min, max: c[h].max, mean: c[h].mean,
+      });
+    }
+  });
+
+  // 9. Mixed types in column — needs Claude
+  state.headers.forEach(h => {
+    if (c[h].hasMixedTypes) {
+      steps.push({
+        type: 'mixed_types', needsClaude: true,
+        column: h, mixedSample: c[h].mixedSample,
+        pct: c[h].pct(c[h].nonNumericNonMissing ? c[h].nonNumericNonMissing.length : 0),
+      });
+    }
+  });
+
+  // 10. Zero variance columns — deterministic flag
+  state.headers.forEach(h => {
+    if (c[h].hasZeroVariance) {
+      steps.push({
+        type: 'zero_variance', needsClaude: false,
+        column: h, value: c[h].uniqueSample[0],
+        totalCount: c[h].totalCount,
+      });
+    }
+  });
+
+  // 11. Outliers in numeric columns — needs Claude
+  state.headers.forEach(h => {
+    if (c[h].outlierCount > 0) {
+      steps.push({
+        type: 'outliers', needsClaude: true,
+        column: h,
+        count: c[h].outlierCount,
+        pct: c[h].pct(c[h].outlierCount),
+        outlierSample: c[h].outlierSample,
         min: c[h].min, max: c[h].max, mean: c[h].mean,
       });
     }
@@ -1072,6 +1226,42 @@ function generatePrompt(step) {
       return `In my dataframe from "${file}", the column "${column}" has ${count.toLocaleString()} zero values (${pct}% of rows). Column stats: min=${min}, max=${max}, mean=${mean}.\n\nWrite pandas code to display a sample of rows where "${column}" is zero, showing all columns. Help me determine whether these zeros are valid data or missing value placeholders. If they are errors, write code to replace them with NaN and show the impact on the column mean.`;
     }
 
+    case 'zero_variance': {
+      const { column, value } = step;
+      const tbl2 = state.fileName.replace('.csv', '').replace(/\s+/g, '_');
+      if (f === 'excel') return `Column "${column}" contains only the value "${value}" in every row.\n\n1. Click the column header to select it\n2. Right-click → Delete\n3. Verify your row count is unchanged after deletion\n\nThis column carries no analytical value and is safe to remove.`;
+      if (f === 'sql') return `-- Confirm the column is truly constant:\nSELECT DISTINCT "${column}" FROM ${tbl2};\n\n-- Drop the column:\nALTER TABLE ${tbl2} DROP COLUMN "${column}";\n\n-- Verify:\nSELECT column_name FROM information_schema.columns WHERE table_name = '${tbl2}';`;
+      return `# Confirm and drop the constant column\nprint(df['${column}'].unique())  # Should show only one value: "${value}"\n\ndf.drop(columns=['${column}'], inplace=True)\nprint(f"Dropped '${column}'. Remaining columns: {list(df.columns)}")`;
+    }
+    case 'mixed_types': {
+      const { column, mixedSample } = step;
+      const examples = (mixedSample || []).map(v => `"${v}"`).join(', ');
+      if (f === 'excel') return `In my dataset "${file}", the column "${column}" contains a mix of numeric and text values. Non-numeric examples found: ${examples}.\n\nWalk me through how to identify all non-numeric rows in this column in Excel, determine whether they are errors or intentional, and standardize the column to a consistent type.`;
+      if (f === 'sql') return `In my table from "${file}", the column "${column}" has mixed numeric and text values. Non-numeric examples: ${examples}.\n\nWrite a SQL query to identify all rows with non-numeric values in this column. Then recommend the best approach to standardize the column type and write the necessary queries.`;
+      return `In my dataframe from "${file}", the column "${column}" has mixed types. Non-numeric examples: ${examples}.\n\nWrite pandas code to identify all rows with non-numeric values using pd.to_numeric(errors='coerce'). Print those rows so I can review them. Then recommend whether to coerce, fix, or drop, and write the implementation.`;
+    }
+
+    case 'outliers': {
+      const { column, count, pct, outlierSample, min, max, mean } = step;
+      const examples = (outlierSample || []).join(', ');
+      if (f === 'excel') return `In my dataset "${file}", the column "${column}" has ${count.toLocaleString()} statistical outliers (${pct}% of rows). Stats: min=${min}, max=${max}, mean=${mean}. Example outlier values: ${examples}.\n\nWalk me through how to identify and review these rows in Excel. Help me determine whether they are legitimate extreme values or data errors, and what options I have for handling them.`;
+      if (f === 'sql') return `In my table from "${file}", the column "${column}" has ${count.toLocaleString()} outliers (${pct}%). Stats: min=${min}, max=${max}, mean=${mean}. Examples: ${examples}.\n\nWrite a SQL query to show all outlier rows in full context. Then explain options — capping, removing, or flagging — and write queries for my chosen approach.`;
+      return `In my dataframe from "${file}", the column "${column}" has ${count.toLocaleString()} outliers (${pct}%). Stats: min=${min}, max=${max}, mean=${mean}. Examples: ${examples}.\n\nWrite pandas code to display the outlier rows with full context. Then present three options: (1) cap at 3σ, (2) remove rows, (3) flag with a boolean column. Write code for whichever I choose after reviewing.`;
+    }
+
+    case 'zero_variance':
+      return '';
+
+    case 'suspicious_zeros':
+    case 'sentinels':
+    case 'inconsistent_categories':
+    case 'blanks':
+    case 'nulls':
+    case 'date_type':
+    case 'duplicates':
+    case 'whitespace':
+      return `Review the dataset "${file}" for any remaining data quality issues in the columns: ${state.headers.join(', ')}.`;
+
     default:
       return `Review the dataset "${file}" for any remaining data quality issues in the columns: ${state.headers.join(', ')}.`;
   }
@@ -1087,6 +1277,9 @@ const STEP_TITLES = {
   inconsistent_categories: col => `Standardize categories in "${col}"`,
   sentinels:               col => `Review sentinel values in "${col}"`,
   suspicious_zeros:        col => `Review zero values in "${col}"`,
+  mixed_types:             col => `Fix mixed data types in "${col}"`,
+  zero_variance:           col => `Review constant column "${col}"`,
+  outliers:                col => `Review outliers in "${col}"`,
 };
 
 const STEP_WHAT = {
@@ -1098,6 +1291,9 @@ const STEP_WHAT = {
   inconsistent_categories: 'Issue detected: inconsistent categories',
   sentinels:               'Issue detected: sentinel values',
   suspicious_zeros:        'Issue detected: suspicious zeros',
+  mixed_types:             'Issue detected: mixed data types',
+  zero_variance:           'Issue detected: constant column',
+  outliers:                'Issue detected: statistical outliers',
 };
 
 const STEP_RATIONALE = {
@@ -1132,6 +1328,18 @@ const STEP_RATIONALE = {
   suspicious_zeros: (col, count) => ({
     text: `The "${col}" column contains ${count.toLocaleString()} zero values. In a numeric column this may indicate legitimate data, but zeros can also represent missing or unrecorded values — especially in financial or quantity fields.`,
     steps: ['Review a sample of rows where this column is zero', 'Determine whether zeros are valid data or data entry placeholders', 'If placeholders, decide whether to replace with null or remove']
+  }),
+  mixed_types: (col) => ({
+    text: `The "${col}" column contains a mix of numeric and text values. This usually indicates an import error, inconsistent data entry, or a unit/label accidentally included in a value field.`,
+    steps: ['Identify which rows contain non-numeric values', 'Determine if they are errors or intentional', 'Standardize the column to a single type']
+  }),
+  zero_variance: (col) => ({
+    text: `The "${col}" column contains only a single unique value across all rows. A constant column carries no analytical information and is likely an import artifact or default fill.`,
+    steps: ['Confirm the column is truly constant by reviewing a sample', 'Decide whether to drop the column entirely', 'If keeping, document why it exists']
+  }),
+  outliers: (col, count) => ({
+    text: `The "${col}" column contains ${count.toLocaleString()} values more than 3 standard deviations from the mean. These may be legitimate extreme values or data entry errors.`,
+    steps: ['Review the flagged values in context of surrounding rows', 'Determine if they are plausible given the data domain', 'Cap, remove, or flag as appropriate']
   }),
 };
 
@@ -1176,6 +1384,21 @@ const STEP_SUMMARIES = {
     `Column range: min=${step.min}, max=${step.max}, mean=${step.mean}`,
     'Zeros may be valid data or may represent unrecorded/missing values',
   ],
+  mixed_types: (step) => [
+    `Column: "${step.column}" — contains both numeric and text values`,
+    `Non-numeric examples: ${step.mixedSample.map(v => `"${v}"`).join(', ')}`,
+    'Cannot be aggregated or sorted reliably until type is standardized',
+  ],
+  zero_variance: (step) => [
+    `Column: "${step.column}" — every row contains the value "${step.value}"`,
+    `Total rows: ${step.totalCount.toLocaleString()} — all identical`,
+    'Constant columns add no information and may indicate an import error',
+  ],
+  outliers: (step) => [
+    `Column: "${step.column}" — ${step.count.toLocaleString()} values (${step.pct}%) are statistical outliers`,
+    `Outlier examples: ${step.outlierSample.join(', ')} (column mean: ${step.mean})`,
+    'May be legitimate extremes or data entry errors — requires human review',
+  ],
 };
 
 const STEP_WATCHOUTS = {
@@ -1219,6 +1442,21 @@ const STEP_WATCHOUTS = {
     'If zeros are placeholders for missing data, replacing them with NULL will change your column mean, min, and any sum aggregations significantly.',
     'Check whether zeros correlate with other columns — e.g. a zero total_spent with a non-zero quantity strongly suggests a data entry error.',
   ],
+  mixed_types: [
+    'Do not blindly coerce the entire column to numeric — the text values may contain important information (e.g. "N/A", "pending", a unit label).',
+    'Check if the text values follow a pattern — they may all be in specific rows that can be identified and handled separately.',
+    'Converting text to NaN silently drops data. Always print which rows are affected before applying any type coercion.',
+  ],
+  zero_variance: [
+    'Before dropping the column, confirm it is constant across the full dataset — a small sample may miss variation in other rows.',
+    'If this column was joined from another table, it may indicate a failed or incorrect join.',
+    'Dropping a column is irreversible on the original file — export a backup first.',
+  ],
+  outliers: [
+    'Statistical outliers (3σ) are a flag for review, not automatic errors. Domain knowledge is required — a $50,000 transaction may be valid in some datasets.',
+    'Never remove outliers without understanding why they exist. Removing them changes your mean, std, and any percentile calculations.',
+    'If outliers cluster in specific rows or time periods, that pattern is itself meaningful data — investigate before removing.',
+  ],
 };
 
 function showStep(index) {
@@ -1251,6 +1489,9 @@ function showStep(index) {
   else if (step.type === 'inconsistent_categories') ratObj = rat(step.column);
   else if (step.type === 'sentinels')               ratObj = rat(step.column, step.count);
   else if (step.type === 'suspicious_zeros')        ratObj = rat(step.column, step.count);
+  else if (step.type === 'mixed_types')             ratObj = rat(step.column);
+  else if (step.type === 'zero_variance')           ratObj = rat(step.column);
+  else if (step.type === 'outliers')                ratObj = rat(step.column, step.count);
   else ratObj = { text: '', steps: [] };
 
   const rationaleEl = document.getElementById('step-rationale');
@@ -1361,6 +1602,23 @@ function highlightStep(step) {
             if (!state.changedCells[ri]) state.changedCells[ri] = {};
             state.changedCells[ri][h] = true;
           }
+        } else if (step.type === 'mixed_types') {
+          if (isNaN(parseFloat(v)) && v !== '' && !isNullString(v) && !isTrueNull(v)) {
+            if (!state.changedCells[ri]) state.changedCells[ri] = {};
+            state.changedCells[ri][h] = true;
+          }
+        } else if (step.type === 'zero_variance') {
+          if (!state.changedCells[ri]) state.changedCells[ri] = {};
+          state.changedCells[ri][h] = true;
+        } else if (step.type === 'outliers') {
+          const num = parseFloat(v);
+          if (!isNaN(num) && step.mean !== null) {
+            // Recompute threshold inline
+            if (Math.abs(num - step.mean) > 3 * ((step.max - step.min) / 6)) {
+              if (!state.changedCells[ri]) state.changedCells[ri] = {};
+              state.changedCells[ri][h] = true;
+            }
+          }
         }
       });
     });
@@ -1377,6 +1635,7 @@ function highlightStep(step) {
 
   document.getElementById('table-mode-label').textContent = 'Affected cells highlighted';
   document.getElementById('diff-legend').style.display = 'flex';
+  syncAffectedToggleUI();
   renderTable();
 }
 
@@ -1406,14 +1665,7 @@ function navigateStep(dir) {
   if (next < 0 || next >= state.steps.length) return;
   state.changedCells = {};
   state.affectedFilterActive = false;
-  const toggleLabel = document.getElementById('affected-toggle-label');
-  const toggleBtn = document.getElementById('affected-toggle');
-  if (toggleLabel) toggleLabel.textContent = 'show affected only';
-  if (toggleBtn) {
-    toggleBtn.style.background = 'rgba(200,240,106,0.12)';
-    toggleBtn.style.borderColor = 'rgba(200,240,106,0.3)';
-    toggleBtn.style.color = 'var(--accent)';
-  }
+  syncAffectedToggleUI();
   document.getElementById('table-mode-label').textContent = 'Dataset preview';
   document.getElementById('diff-legend').style.display = 'none';
   if (!state.visited) state.visited = new Set();
@@ -1466,41 +1718,88 @@ function renderHistory() {
   el.scrollTop = el.scrollHeight;
 }
 
-function toggleAffectedFilter() {
+function sortBy(col, fromExpand) {
+  if (state.sortCol === col) {
+    // Cycle: asc → desc → null (original)
+    if (state.sortDir === 'asc') state.sortDir = 'desc';
+    else if (state.sortDir === 'desc') { state.sortCol = null; state.sortDir = null; }
+    else state.sortDir = 'asc';
+  } else {
+    state.sortCol = col;
+    state.sortDir = 'asc';
+  }
+  state.page = 0;
+  expandPage = 0;
+  renderTable();
+  if (document.getElementById('expand-overlay').style.display === 'flex') renderExpandTable();
+}
+
+function getSortedFilteredRows(baseRows) {
+  let rows = baseRows;
+  if (state.affectedFilterActive && Object.keys(state.changedCells).length > 0) {
+    const affectedIdxs = new Set(Object.keys(state.changedCells).map(Number));
+    rows = rows.filter((_, i) => affectedIdxs.has(state.workingData.indexOf(rows[i]) !== -1 ? state.workingData.indexOf(rows[i]) : i));
+  }
+  if (state.searchQuery) {
+    rows = rows.filter(row =>
+      state.headers.some(h => String(row[h] || '').toLowerCase().includes(state.searchQuery))
+    );
+  }
+  if (state.sortCol && state.sortDir) {
+    const col = state.sortCol;
+    const dir = state.sortDir === 'asc' ? 1 : -1;
+    rows = [...rows].sort((a, b) => {
+      const va = a[col]; const vb = b[col];
+      const na = parseFloat(va); const nb = parseFloat(vb);
+      const bothNumeric = !isNaN(na) && !isNaN(nb);
+      if (bothNumeric) return (na - nb) * dir;
+      return String(va || '').localeCompare(String(vb || '')) * dir;
+    });
+  }
+  return rows;
+}
+
+function toggleAffectedFilter(fromExpand) {
   state.affectedFilterActive = !state.affectedFilterActive;
   state.page = 0;
-  const label = document.getElementById('affected-toggle-label');
-  const btn = document.getElementById('affected-toggle');
-  if (state.affectedFilterActive) {
-    label.textContent = 'show all rows';
-    btn.style.background = 'var(--accent)';
-    btn.style.borderColor = 'var(--accent)';
-    btn.style.color = '#0e0e0f';
-  } else {
-    label.textContent = 'show affected only';
-    btn.style.background = 'rgba(200,240,106,0.12)';
-    btn.style.borderColor = 'rgba(200,240,106,0.3)';
-    btn.style.color = 'var(--accent)';
-  }
+  expandPage = 0;
+  syncAffectedToggleUI();
   renderTable();
+  if (document.getElementById('expand-overlay').style.display === 'flex') renderExpandTable();
+}
+
+function syncAffectedToggleUI() {
+  const active = state.affectedFilterActive;
+  const hasAffected = Object.keys(state.changedCells).length > 0;
+
+  const btn = document.getElementById('affected-toggle');
+  const label = document.getElementById('affected-toggle-label');
+  if (btn) {
+    btn.style.background = active ? 'var(--accent)' : 'rgba(200,240,106,0.12)';
+    btn.style.borderColor = active ? 'var(--accent)' : 'rgba(200,240,106,0.3)';
+    btn.style.color = active ? '#0e0e0f' : 'var(--accent)';
+    if (label) label.textContent = active ? 'show all rows' : 'show affected only';
+  }
+
+  const expBtn = document.getElementById('expand-affected-toggle');
+  const expLabel = document.getElementById('expand-affected-label');
+  if (expBtn) {
+    expBtn.style.display = hasAffected ? 'flex' : 'none';
+    expBtn.style.background = active ? 'var(--accent)' : 'rgba(200,240,106,0.12)';
+    expBtn.style.borderColor = active ? 'var(--accent)' : 'rgba(200,240,106,0.3)';
+    expBtn.style.color = active ? '#0e0e0f' : 'var(--accent)';
+    if (expLabel) expLabel.textContent = active ? 'show all rows' : 'show affected only';
+  }
 }
 
 // ─── TABLE RENDER ─────────────────────────────────────────────────────────────
 function getFilteredRows() {
-  let rows = state.workingData;
-
-  // Filter to affected rows only if toggle is active
-  if (state.affectedFilterActive && Object.keys(state.changedCells).length > 0) {
-    const affectedIdxs = new Set(Object.keys(state.changedCells).map(Number));
-    rows = rows.filter((_, i) => affectedIdxs.has(i));
-  }
-
-  if (!state.searchQuery) return rows;
-  return rows.filter(row =>
-    state.headers.some(h => String(row[h] || '').toLowerCase().includes(state.searchQuery))
-  );
+  return getSortedFilteredRows(state.workingData);
 }
 
+function getExpandFilteredRows() {
+  return getSortedFilteredRows(state.workingData);
+}
 function renderTable() {
   const filtered = getFilteredRows();
   const total = filtered.length;
@@ -1519,7 +1818,11 @@ function renderTable() {
   const pageWithIdx = allFiltered.slice(state.page * state.pageSize, (state.page + 1) * state.pageSize);
 
   let html = '<table><thead><tr>';
-  state.headers.forEach(h => { html += `<th>${escHtml(h)}</th>`; });
+  state.headers.forEach(h => {
+    const isSorted = state.sortCol === h;
+    const indicator = isSorted ? (state.sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+    html += `<th onclick="sortBy('${escHtml(h)}')" style="cursor:pointer;user-select:none;${isSorted ? 'color:var(--accent);' : ''}">${escHtml(h)}${indicator}</th>`;
+  });
   html += '</tr></thead><tbody>';
 
   pageWithIdx.forEach(({ row, idx }) => {
@@ -1566,8 +1869,14 @@ function resetAll() {
   state = {
     rawData: [], workingData: [], headers: [], fileName: '',
     format: state.format, steps: [], stepIndex: 0, visited: new Set(),
-    changedCells: {}, page: 0, pageSize: 50, searchQuery: ''
+    changedCells: {}, affectedFilterActive: false,
+    sortCol: null, sortDir: null,
+    page: 0, pageSize: 50, searchQuery: ''
   };
+  logNotes = [];
+  logIdCounter = 0;
+  document.getElementById('log-notes').style.display = 'none';
+  document.getElementById('log-input').value = '';
   workspace.classList.remove('visible');
   uploadZone.classList.remove('hidden');
   document.getElementById('format-overlay').classList.remove('visible');
@@ -1589,7 +1898,58 @@ function resetAll() {
   document.getElementById('table-mode-label').textContent = 'Dataset preview';
 }
 
-// ─── TABLE EXPAND ─────────────────────────────────────────────────────────────
+// ─── LOG ──────────────────────────────────────────────────────────────────────
+let logNotes = []; // [{id, text, time, favorited}]
+let logIdCounter = 0;
+
+function addLogNote() {
+  const input = document.getElementById('log-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const note = {
+    id: ++logIdCounter,
+    text,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    favorited: false,
+  };
+  logNotes.push(note);
+  input.value = '';
+  renderLogNotes();
+}
+
+function deleteLogNote(id) {
+  logNotes = logNotes.filter(n => n.id !== id);
+  renderLogNotes();
+}
+
+function toggleFavorite(id) {
+  const note = logNotes.find(n => n.id === id);
+  if (note) note.favorited = !note.favorited;
+  renderLogNotes();
+}
+
+function renderLogNotes() {
+  const el = document.getElementById('log-notes');
+  if (!logNotes.length) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  const sorted = [...logNotes].sort((a, b) => {
+    if (a.favorited && !b.favorited) return -1;
+    if (!a.favorited && b.favorited) return 1;
+    return a.id - b.id;
+  });
+  el.innerHTML = sorted.map(n => `
+    <div class="log-note${n.favorited ? ' favorited' : ''}">
+      <div class="log-note-text">${escHtml(n.text)}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+        <div class="log-note-actions">
+          <button class="log-note-btn${n.favorited ? ' fav-active' : ''}" onclick="toggleFavorite(${n.id})" title="${n.favorited ? 'Unfavorite' : 'Favorite'}">★</button>
+          <button class="log-note-btn" onclick="deleteLogNote(${n.id})" title="Delete" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">✕</button>
+        </div>
+        <div class="log-note-time">${n.time}</div>
+      </div>
+    </div>
+  `).join('');
+}
 let expandPage = 0;
 let expandSearch = '';
 
@@ -1609,6 +1969,7 @@ function toggleExpand() {
     document.getElementById('expand-search').value = '';
     document.getElementById('expand-mode-label').textContent =
       document.getElementById('table-mode-label').textContent;
+    syncAffectedToggleUI();
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     // Animate in
@@ -1639,18 +2000,6 @@ function expandNavigate(dir) {
   renderExpandTable();
 }
 
-function getExpandFilteredRows() {
-  let rows = state.workingData;
-  if (state.affectedFilterActive && Object.keys(state.changedCells).length > 0) {
-    const affectedIdxs = new Set(Object.keys(state.changedCells).map(Number));
-    rows = rows.filter((_, i) => affectedIdxs.has(i));
-  }
-  if (!expandSearch) return rows;
-  return rows.filter(row =>
-    state.headers.some(h => String(row[h] || '').toLowerCase().includes(expandSearch))
-  );
-}
-
 function renderExpandTable() {
   const filtered = getExpandFilteredRows();
   const total = filtered.length;
@@ -1668,7 +2017,9 @@ function renderExpandTable() {
 
   let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>';
   state.headers.forEach(h => {
-    html += `<th style="padding:10px 14px;text-align:left;font-weight:500;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;letter-spacing:0.04em;position:sticky;top:0;background:var(--bg3);z-index:1;">${escHtml(h)}</th>`;
+    const isSorted = state.sortCol === h;
+    const indicator = isSorted ? (state.sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+    html += `<th onclick="sortBy('${escHtml(h)}')" style="padding:10px 14px;text-align:left;font-weight:500;font-family:'DM Mono',monospace;font-size:11px;border-bottom:1px solid var(--border);white-space:nowrap;letter-spacing:0.04em;position:sticky;top:0;background:var(--bg3);z-index:1;cursor:pointer;user-select:none;${isSorted ? 'color:var(--accent);' : 'color:var(--text2);'}">${escHtml(h)}${indicator}</th>`;
   });
   html += '</tr></thead><tbody>';
 
