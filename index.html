@@ -612,6 +612,73 @@
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* FORMAT OVERLAY */
+  #format-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(14,14,15,0.92);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  #format-overlay.visible { display: flex; }
+
+  .format-overlay-box {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    width: 480px;
+    text-align: center;
+  }
+
+  .format-overlay-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 26px;
+    margin-bottom: 0.4rem;
+  }
+
+  .format-overlay-sub {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 1.75rem;
+  }
+
+  .format-overlay-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .format-overlay-option {
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 1.25rem 1rem;
+    cursor: pointer;
+    background: var(--bg3);
+    transition: all 0.15s;
+  }
+
+  .format-overlay-option:hover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .format-overlay-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .format-overlay-desc {
+    font-size: 11px;
+    color: var(--text3);
+    line-height: 1.4;
+  }
 </style>
 </head>
 <body>
@@ -627,8 +694,29 @@
 
 <div id="analysis-overlay">
   <div class="analysis-spinner"></div>
-  <div class="analysis-text">Analysing dataset...</div>
-  <div class="analysis-sub">Computing statistics across all rows</div>
+  <div class="analysis-text">Analyzing dataset...</div>
+  <div class="analysis-sub" id="analysis-sub">Computing statistics across all rows</div>
+</div>
+
+<div id="format-overlay">
+  <div class="format-overlay-box">
+    <div class="format-overlay-title">Choose your format</div>
+    <div class="format-overlay-sub">How should cleaning steps be written?</div>
+    <div class="format-overlay-options">
+      <div class="format-overlay-option" onclick="selectFormatAndAnalyze('excel')">
+        <div class="format-overlay-label">Excel</div>
+        <div class="format-overlay-desc">Formulas and UI steps</div>
+      </div>
+      <div class="format-overlay-option" onclick="selectFormatAndAnalyze('sql')">
+        <div class="format-overlay-label">SQL</div>
+        <div class="format-overlay-desc">ALTER and UPDATE statements</div>
+      </div>
+      <div class="format-overlay-option" onclick="selectFormatAndAnalyze('python')">
+        <div class="format-overlay-label">Python</div>
+        <div class="format-overlay-desc">pandas operations</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <main>
@@ -858,7 +946,7 @@ function parseCSV(text) {
   workspace.classList.add('visible');
 
   renderTable(false);
-  analyzeDataset();
+  document.getElementById('format-overlay').classList.add('visible');
 }
 
 const NULL_PLACEHOLDERS = new Set(['n/a', 'na', 'null', 'none', 'nil', '-', '--', '–', '—', '?', 'unknown', 'undefined', 'missing', 'nan', '#n/a', '#na']);
@@ -1031,7 +1119,16 @@ async function demoResponse(messages) {
   });
 }
 
-// ─── ANALYSE ──────────────────────────────────────────────────────────────────
+function selectFormatAndAnalyze(format) {
+  state.format = format;
+  document.querySelectorAll('.pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.format === format);
+  });
+  document.getElementById('format-overlay').classList.remove('visible');
+  analyzeDataset();
+}
+
+// ─── ANALYZE ──────────────────────────────────────────────────────────────────
 async function analyzeDataset() {
   document.getElementById('analysis-overlay').classList.add('visible');
 
@@ -1040,7 +1137,7 @@ async function analyzeDataset() {
     'Reading column structure...',
     'Computing null and blank counts...',
     'Detecting data types...',
-    'Analysing value distributions...',
+    'Analyzing value distributions...',
     'Identifying cleaning priorities...',
     'Generating first recommendation...'
   ];
@@ -1448,6 +1545,7 @@ function resetAll() {
   workspace.classList.remove('visible');
   uploadZone.classList.remove('hidden');
   fileInput.value = '';
+  document.getElementById('format-overlay').classList.remove('visible');
   document.getElementById('search-input').value = '';
   document.getElementById('table-wrap').innerHTML = '<div style="padding: 3rem; text-align: center; color: var(--text3); font-size: 13px;">Upload a CSV to preview your data here</div>';
   document.getElementById('history-track').innerHTML = '<div class="history-empty">No steps approved yet.</div>';
