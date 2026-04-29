@@ -427,6 +427,53 @@
   </div>
 </div>
 
+<div id="expand-overlay" onclick="collapseIfBackdrop(event)" style="
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(14,14,15,0.7);
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+  z-index:300;
+  padding:2rem;
+  align-items:center;justify-content:center;
+">
+  <div id="expand-panel" style="
+    background:var(--bg2);
+    border:1px solid var(--border2);
+    border-radius:var(--radius-lg);
+    width:100%;max-width:1400px;
+    height:90vh;
+    display:flex;flex-direction:column;
+    overflow:hidden;
+    transform:scale(0.96);opacity:0;
+    transition:transform 0.2s ease, opacity 0.2s ease;
+  ">
+    <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="font-size:12px;font-family:'DM Mono',monospace;letter-spacing:0.06em;color:var(--text3);text-transform:uppercase;" id="expand-mode-label">Dataset preview</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="text" id="expand-search" placeholder="Search all cells..." style="
+          background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+          padding:6px 12px;color:var(--text);font-size:13px;
+          font-family:'DM Sans',sans-serif;outline:none;width:220px;
+        " oninput="onExpandSearch(this.value)">
+        <button onclick="toggleExpand()" style="
+          background:transparent;border:1px solid var(--border2);border-radius:6px;
+          width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+          cursor:pointer;color:var(--text3);font-size:13px;transition:all 0.15s;
+        " onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕</button>
+      </div>
+    </div>
+    <div id="expand-table-wrap" style="overflow:auto;flex:1;"></div>
+    <div style="padding:0.75rem 1.5rem;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text3);flex-shrink:0;">
+      <span id="expand-page-info">—</span>
+      <div style="display:flex;gap:6px;">
+        <button class="page-btn" id="expand-prev" onclick="expandNavigate(-1)">← prev</button>
+        <button class="page-btn" id="expand-next" onclick="expandNavigate(1)">next →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <main>
   <!-- UPLOAD -->
   <div id="upload-zone">
@@ -519,22 +566,33 @@
       <div class="data-panel">
         <div class="data-panel-header">
           <div class="data-panel-title" id="table-mode-label">Dataset preview</div>
-          <div class="diff-legend" id="diff-legend" style="display:none;">
-            <button id="affected-toggle" onclick="toggleAffectedFilter()" style="
-              background:rgba(200,240,106,0.12);
-              border:1px solid rgba(200,240,106,0.3);
-              border-radius:4px;
-              padding:2px 8px;
-              font-size:11px;
-              color:var(--accent);
-              cursor:pointer;
-              font-family:'DM Mono',monospace;
-              transition:all 0.15s;
-              display:flex;align-items:center;gap:5px;
-            ">
-              <span style="width:8px;height:8px;border-radius:2px;background:rgba(200,240,106,0.5);display:inline-block;"></span>
-              <span id="affected-toggle-label">show affected only</span>
-            </button>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="diff-legend" id="diff-legend" style="display:none;">
+              <button id="affected-toggle" onclick="toggleAffectedFilter()" style="
+                background:rgba(200,240,106,0.12);
+                border:1px solid rgba(200,240,106,0.3);
+                border-radius:4px;
+                padding:2px 8px;
+                font-size:11px;
+                color:var(--accent);
+                cursor:pointer;
+                font-family:'DM Mono',monospace;
+                transition:all 0.15s;
+                display:flex;align-items:center;gap:5px;
+              ">
+                <span style="width:8px;height:8px;border-radius:2px;background:rgba(200,240,106,0.5);display:inline-block;"></span>
+                <span id="affected-toggle-label">show affected only</span>
+              </button>
+            </div>
+            <button id="expand-btn" onclick="toggleExpand()" title="Expand table" style="
+              background:transparent;
+              border:1px solid var(--border2);
+              border-radius:6px;
+              width:28px;height:28px;
+              display:flex;align-items:center;justify-content:center;
+              cursor:pointer;color:var(--text3);font-size:13px;
+              transition:all 0.15s;flex-shrink:0;
+            " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">⤢</button>
           </div>
         </div>
         <div class="search-bar">
@@ -730,6 +788,23 @@ function computeStats() {
     // Valid sample — actual non-missing values showing what good data looks like
     const validSample = nonMissing.filter(v => !isNullString(v)).slice(0, 5);
 
+    // Sentinel values — "unknown", "n/a", "none", "other" used as stand-ins for missing
+    const SENTINELS = new Set(['unknown', 'n/a', 'na', 'none', 'other', 'nil', 'not available', 'not applicable', '-', '--', 'tbd', 'tbc']);
+    const sentinelCounts = {};
+    nonMissing.forEach(v => {
+      const lower = typeof v === 'string' ? v.trim().toLowerCase() : '';
+      if (SENTINELS.has(lower)) sentinelCounts[v] = (sentinelCounts[v] || 0) + 1;
+    });
+    const totalSentinels = Object.values(sentinelCounts).reduce((a, b) => a + b, 0);
+    const hasSentinels = totalSentinels > 0;
+    const sentinelSample = Object.entries(sentinelCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([v, c]) => `"${v}" (${c})`);
+
+    // Suspicious zeros in numeric columns
+    const zeroCount = numeric.filter(v => v === 0).length;
+    const hasZeros = numeric.length > nonMissing.length * 0.7 && zeroCount > 0 && zeroCount < nonMissing.length * 0.5;
+
     stats[h] = {
       nullCount, blankCount,
       uniqueCount: unique.length,
@@ -740,16 +815,12 @@ function computeStats() {
       min: numeric.length ? Math.min(...numeric) : null,
       max: numeric.length ? Math.max(...numeric) : null,
       mean: numeric.length ? +(numeric.reduce((a, b) => a + b, 0) / numeric.length).toFixed(2) : null,
-      hasWhitespace,
-      whitespaceExamples,
-      looksLikeDate,
-      hasMixedDateFormats,
-      dateSamples,
-      hasCaseInconsistency,
-      isLikelyCategorical,
-      validSample,
-      uniqueWithCounts,
-      uniqueSample: unique.slice(0, 10),
+      hasWhitespace, whitespaceExamples,
+      looksLikeDate, hasMixedDateFormats, dateSamples,
+      hasCaseInconsistency, isLikelyCategorical,
+      validSample, uniqueWithCounts, uniqueSample: unique.slice(0, 10),
+      hasSentinels, sentinelCounts, sentinelSample, totalSentinels,
+      hasZeros, zeroCount,
     };
   });
 
@@ -828,6 +899,33 @@ function buildSteps() {
         type: 'inconsistent_categories', needsClaude: true,
         column: h, uniqueSample: c[h].uniqueSample,
         uniqueWithCounts: c[h].uniqueWithCounts, uniqueCount: c[h].uniqueCount,
+      });
+    }
+  });
+
+  // 7. Sentinel values — needs Claude
+  state.headers.forEach(h => {
+    if (c[h].hasSentinels) {
+      steps.push({
+        type: 'sentinels', needsClaude: true,
+        column: h,
+        count: c[h].totalSentinels,
+        pct: c[h].pct(c[h].totalSentinels),
+        sentinelSample: c[h].sentinelSample,
+        sentinelCounts: c[h].sentinelCounts,
+      });
+    }
+  });
+
+  // 8. Suspicious zeros in numeric columns — needs Claude
+  state.headers.forEach(h => {
+    if (c[h].hasZeros) {
+      steps.push({
+        type: 'suspicious_zeros', needsClaude: true,
+        column: h,
+        count: c[h].zeroCount,
+        pct: c[h].pct(c[h].zeroCount),
+        min: c[h].min, max: c[h].max, mean: c[h].mean,
       });
     }
   });
@@ -959,6 +1057,21 @@ function generatePrompt(step) {
       return `In my dataframe from "${file}", the column "${column}" has inconsistent category values.${listLine}\n\nBased on the values above, identify which values appear to be variants of the same category. Propose a mapping dictionary but do not apply it yet — show me the proposed changes first so I can confirm them before you write the replacement code.`;
     }
 
+    case 'sentinels': {
+      const { column, count, pct, sentinelSample } = step;
+      const valList = sentinelSample.join(', ');
+      if (f === 'excel') return `In my dataset "${file}", the column "${column}" contains ${count.toLocaleString()} cells (${pct}%) with placeholder values that represent missing or unknown data: ${valList}.\n\nThese are real text strings, not true empty cells, so Excel's blank-handling tools won't catch them. Walk me through how to find and handle these in Excel. Should I treat them as missing (replace with blank/NA), keep them as a category, or flag them separately? Give step-by-step instructions.`;
+      if (f === 'sql') return `In my table from "${file}", the column "${column}" has ${count.toLocaleString()} rows (${pct}%) containing placeholder strings: ${valList}.\n\nWrite a SELECT query to confirm the counts per value. Then recommend whether to convert these to NULL, keep as-is, or recode them, and write the appropriate UPDATE statements. Explain your recommendation given this is the "${column}" column.`;
+      return `In my dataframe from "${file}", the column "${column}" has ${count.toLocaleString()} rows (${pct}%) containing placeholder strings: ${valList}.\n\nWrite pandas code to first print the value counts for these sentinels. Then recommend whether to replace with NaN, keep as a category, or recode. Write the implementation and print counts before and after.`;
+    }
+
+    case 'suspicious_zeros': {
+      const { column, count, pct, min, max, mean } = step;
+      if (f === 'excel') return `In my dataset "${file}", the column "${column}" contains ${count.toLocaleString()} zero values (${pct}% of rows). The column range is min=${min}, max=${max}, mean=${mean}.\n\nPlease help me investigate whether these zeros are legitimate data or data entry errors standing in for missing values. Walk me through how to filter and review the zero rows in Excel, and what to look for to make that determination.`;
+      if (f === 'sql') return `In my table from "${file}", the column "${column}" has ${count.toLocaleString()} zero values (${pct}% of rows). Column stats: min=${min}, max=${max}, mean=${mean}.\n\nWrite a SQL query to show the rows where "${column}" is zero alongside all other columns, so I can determine if zeros are valid or erroneous. Then suggest how to handle them if they are errors.`;
+      return `In my dataframe from "${file}", the column "${column}" has ${count.toLocaleString()} zero values (${pct}% of rows). Column stats: min=${min}, max=${max}, mean=${mean}.\n\nWrite pandas code to display a sample of rows where "${column}" is zero, showing all columns. Help me determine whether these zeros are valid data or missing value placeholders. If they are errors, write code to replace them with NaN and show the impact on the column mean.`;
+    }
+
     default:
       return `Review the dataset "${file}" for any remaining data quality issues in the columns: ${state.headers.join(', ')}.`;
   }
@@ -972,6 +1085,8 @@ const STEP_TITLES = {
   duplicates:              'Remove duplicate rows',
   date_type:               col => `Convert "${col}" to date format`,
   inconsistent_categories: col => `Standardize categories in "${col}"`,
+  sentinels:               col => `Review sentinel values in "${col}"`,
+  suspicious_zeros:        col => `Review zero values in "${col}"`,
 };
 
 const STEP_WHAT = {
@@ -981,6 +1096,8 @@ const STEP_WHAT = {
   duplicates:              'Issue detected: duplicate rows',
   date_type:               'Issue detected: text-stored dates',
   inconsistent_categories: 'Issue detected: inconsistent categories',
+  sentinels:               'Issue detected: sentinel values',
+  suspicious_zeros:        'Issue detected: suspicious zeros',
 };
 
 const STEP_RATIONALE = {
@@ -1007,6 +1124,14 @@ const STEP_RATIONALE = {
   inconsistent_categories: (col) => ({
     text: `The "${col}" column has category values that appear to represent the same thing written differently — varying capitalisation or spacing. These will be counted separately in any analysis.`,
     steps: ['Print all unique values to review inconsistencies', 'Define the standard form for each category', 'Apply replacements to standardize all values']
+  }),
+  sentinels: (col, count) => ({
+    text: `The "${col}" column contains ${count.toLocaleString()} cells with placeholder values like "unknown" or "n/a" that stand in for missing data. These are real strings, not true nulls, and will distort any analysis that includes them.`,
+    steps: ['Review which sentinel values are present and how many', 'Decide whether to treat them as missing or keep them as a category', 'Apply consistent treatment across the column']
+  }),
+  suspicious_zeros: (col, count) => ({
+    text: `The "${col}" column contains ${count.toLocaleString()} zero values. In a numeric column this may indicate legitimate data, but zeros can also represent missing or unrecorded values — especially in financial or quantity fields.`,
+    steps: ['Review a sample of rows where this column is zero', 'Determine whether zeros are valid data or data entry placeholders', 'If placeholders, decide whether to replace with null or remove']
   }),
 };
 
@@ -1041,6 +1166,16 @@ const STEP_SUMMARIES = {
     `Sample values found: ${step.uniqueSample.slice(0, 4).join(', ')}`,
     'Will be counted separately in any GROUP BY or pivot analysis',
   ],
+  sentinels: (step) => [
+    `Column: "${step.column}" — ${step.count.toLocaleString()} cells (${step.pct}%) contain placeholder values`,
+    `Values found: ${step.sentinelSample.slice(0, 4).join(', ')}`,
+    'These are real strings masquerading as missing data — not caught by NULL checks',
+  ],
+  suspicious_zeros: (step) => [
+    `Column: "${step.column}" — ${step.count.toLocaleString()} cells (${step.pct}%) are zero`,
+    `Column range: min=${step.min}, max=${step.max}, mean=${step.mean}`,
+    'Zeros may be valid data or may represent unrecorded/missing values',
+  ],
 };
 
 const STEP_WATCHOUTS = {
@@ -1074,6 +1209,16 @@ const STEP_WATCHOUTS = {
     'Case standardization ("In-Store" → "in-store") is safe. Merging semantically distinct values ("takeaway" and "delivery") is not — verify meaning before merging.',
     'After standardizing, print the new unique value counts to confirm no unexpected values remain.',
   ],
+  sentinels: [
+    '"unknown" in one column might be a valid category (e.g. payment method genuinely unknown) while in another it clearly means missing. Treat each column separately.',
+    'Replacing sentinel values with NULL will reduce your non-null count and affect any aggregations. Verify the impact before doing so.',
+    'If "unknown" is a genuine category that analysts need to filter on, converting it to NULL will make it invisible in GROUP BY results.',
+  ],
+  suspicious_zeros: [
+    'Never assume zeros are errors without reviewing actual rows. In some columns (e.g. quantity, total_spent) zero may be genuinely impossible and therefore a data error — in others it may be valid.',
+    'If zeros are placeholders for missing data, replacing them with NULL will change your column mean, min, and any sum aggregations significantly.',
+    'Check whether zeros correlate with other columns — e.g. a zero total_spent with a non-zero quantity strongly suggests a data entry error.',
+  ],
 };
 
 function showStep(index) {
@@ -1098,12 +1243,14 @@ function showStep(index) {
 
   const rat = STEP_RATIONALE[step.type];
   let ratObj;
-  if (step.type === 'whitespace')              ratObj = rat(step.columns);
-  else if (step.type === 'nulls')              ratObj = rat(step.column, step.count);
-  else if (step.type === 'blanks')             ratObj = rat(step.column, step.count);
-  else if (step.type === 'duplicates')         ratObj = rat(step.count);
-  else if (step.type === 'date_type')          ratObj = rat(step.column);
+  if (step.type === 'whitespace')                   ratObj = rat(step.columns);
+  else if (step.type === 'nulls')                   ratObj = rat(step.column, step.count);
+  else if (step.type === 'blanks')                  ratObj = rat(step.column, step.count);
+  else if (step.type === 'duplicates')              ratObj = rat(step.count);
+  else if (step.type === 'date_type')               ratObj = rat(step.column);
   else if (step.type === 'inconsistent_categories') ratObj = rat(step.column);
+  else if (step.type === 'sentinels')               ratObj = rat(step.column, step.count);
+  else if (step.type === 'suspicious_zeros')        ratObj = rat(step.column, step.count);
   else ratObj = { text: '', steps: [] };
 
   const rationaleEl = document.getElementById('step-rationale');
@@ -1202,6 +1349,18 @@ function highlightStep(step) {
         } else if (step.type === 'inconsistent_categories') {
           if (!state.changedCells[ri]) state.changedCells[ri] = {};
           state.changedCells[ri][h] = true;
+        } else if (step.type === 'sentinels') {
+          const lower = typeof v === 'string' ? v.trim().toLowerCase() : '';
+          const SENTINELS = new Set(['unknown','n/a','na','none','other','nil','not available','not applicable','-','--','tbd','tbc']);
+          if (SENTINELS.has(lower)) {
+            if (!state.changedCells[ri]) state.changedCells[ri] = {};
+            state.changedCells[ri][h] = true;
+          }
+        } else if (step.type === 'suspicious_zeros') {
+          if (parseFloat(v) === 0) {
+            if (!state.changedCells[ri]) state.changedCells[ri] = {};
+            state.changedCells[ri][h] = true;
+          }
         }
       });
     });
@@ -1250,7 +1409,11 @@ function navigateStep(dir) {
   const toggleLabel = document.getElementById('affected-toggle-label');
   const toggleBtn = document.getElementById('affected-toggle');
   if (toggleLabel) toggleLabel.textContent = 'show affected only';
-  if (toggleBtn) { toggleBtn.style.background = 'rgba(200,240,106,0.12)'; toggleBtn.style.borderColor = 'rgba(200,240,106,0.3)'; }
+  if (toggleBtn) {
+    toggleBtn.style.background = 'rgba(200,240,106,0.12)';
+    toggleBtn.style.borderColor = 'rgba(200,240,106,0.3)';
+    toggleBtn.style.color = 'var(--accent)';
+  }
   document.getElementById('table-mode-label').textContent = 'Dataset preview';
   document.getElementById('diff-legend').style.display = 'none';
   if (!state.visited) state.visited = new Set();
@@ -1310,12 +1473,14 @@ function toggleAffectedFilter() {
   const btn = document.getElementById('affected-toggle');
   if (state.affectedFilterActive) {
     label.textContent = 'show all rows';
-    btn.style.background = 'rgba(200,240,106,0.25)';
-    btn.style.borderColor = 'rgba(200,240,106,0.6)';
+    btn.style.background = 'var(--accent)';
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = '#0e0e0f';
   } else {
     label.textContent = 'show affected only';
     btn.style.background = 'rgba(200,240,106,0.12)';
     btn.style.borderColor = 'rgba(200,240,106,0.3)';
+    btn.style.color = 'var(--accent)';
   }
   renderTable();
 }
@@ -1424,7 +1589,118 @@ function resetAll() {
   document.getElementById('table-mode-label').textContent = 'Dataset preview';
 }
 
-// ─── UTILS ────────────────────────────────────────────────────────────────────
+// ─── TABLE EXPAND ─────────────────────────────────────────────────────────────
+let expandPage = 0;
+let expandSearch = '';
+
+function toggleExpand() {
+  const overlay = document.getElementById('expand-overlay');
+  const panel = document.getElementById('expand-panel');
+  const isOpen = overlay.style.display === 'flex';
+
+  if (isOpen) {
+    panel.style.transform = 'scale(0.96)';
+    panel.style.opacity = '0';
+    setTimeout(() => { overlay.style.display = 'none'; }, 200);
+    document.body.style.overflow = '';
+  } else {
+    expandPage = 0;
+    expandSearch = '';
+    document.getElementById('expand-search').value = '';
+    document.getElementById('expand-mode-label').textContent =
+      document.getElementById('table-mode-label').textContent;
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    // Animate in
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        panel.style.transform = 'scale(1)';
+        panel.style.opacity = '1';
+      });
+    });
+    renderExpandTable();
+  }
+}
+
+function collapseIfBackdrop(e) {
+  if (e.target === document.getElementById('expand-overlay')) toggleExpand();
+}
+
+function onExpandSearch(val) {
+  expandSearch = val.toLowerCase();
+  expandPage = 0;
+  renderExpandTable();
+}
+
+function expandNavigate(dir) {
+  const filtered = getExpandFilteredRows();
+  const maxPage = Math.max(0, Math.ceil(filtered.length / state.pageSize) - 1);
+  expandPage = Math.max(0, Math.min(expandPage + dir, maxPage));
+  renderExpandTable();
+}
+
+function getExpandFilteredRows() {
+  let rows = state.workingData;
+  if (state.affectedFilterActive && Object.keys(state.changedCells).length > 0) {
+    const affectedIdxs = new Set(Object.keys(state.changedCells).map(Number));
+    rows = rows.filter((_, i) => affectedIdxs.has(i));
+  }
+  if (!expandSearch) return rows;
+  return rows.filter(row =>
+    state.headers.some(h => String(row[h] || '').toLowerCase().includes(expandSearch))
+  );
+}
+
+function renderExpandTable() {
+  const filtered = getExpandFilteredRows();
+  const total = filtered.length;
+  const maxPage = Math.max(0, Math.ceil(total / state.pageSize) - 1);
+  if (expandPage > maxPage) expandPage = maxPage;
+
+  const pageRows = filtered.slice(expandPage * state.pageSize, (expandPage + 1) * state.pageSize);
+  const allFiltered = filtered.map(row => ({ row, idx: state.workingData.indexOf(row) }));
+  const pageWithIdx = allFiltered.slice(expandPage * state.pageSize, (expandPage + 1) * state.pageSize);
+
+  document.getElementById('expand-page-info').textContent =
+    `${Math.min(expandPage * state.pageSize + 1, total).toLocaleString()}–${Math.min((expandPage + 1) * state.pageSize, total).toLocaleString()} of ${total.toLocaleString()}`;
+  document.getElementById('expand-prev').disabled = expandPage === 0;
+  document.getElementById('expand-next').disabled = expandPage >= maxPage;
+
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>';
+  state.headers.forEach(h => {
+    html += `<th style="padding:10px 14px;text-align:left;font-weight:500;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;letter-spacing:0.04em;position:sticky;top:0;background:var(--bg3);z-index:1;">${escHtml(h)}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  pageWithIdx.forEach(({ row, idx }) => {
+    const rowHighlighted = state.changedCells[idx];
+    html += `<tr${rowHighlighted ? ' style="background:rgba(200,240,106,0.04);"' : ''}>`;
+    state.headers.forEach(h => {
+      const cellHighlighted = rowHighlighted && state.changedCells[idx][h];
+      const val = row[h] !== undefined && row[h] !== null ? row[h] : '';
+      if (cellHighlighted) {
+        html += `<td style="padding:8px 14px;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:11px;background:rgba(200,240,106,0.12);color:var(--accent);">${escHtml(val)}</td>`;
+      } else if (isTrueNull(val) || isNullString(val)) {
+        html += `<td style="padding:8px 14px;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:11px;color:var(--red);font-style:italic;opacity:0.7;">NULL</td>`;
+      } else if (isBlank(val)) {
+        html += `<td style="padding:8px 14px;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);font-style:italic;">(empty)</td>`;
+      } else {
+        html += `<td style="padding:8px 14px;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(val)}</td>`;
+      }
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('expand-table-wrap').innerHTML = html;
+}
+
+// Also close expand on Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('expand-overlay').style.display === 'flex') {
+    toggleExpand();
+  }
+});
 function escHtml(v) {
   return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
