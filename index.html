@@ -723,6 +723,22 @@
 
     <!-- ANALYSIS VIEW -->
     <div id="analysis-view" style="display:none;">
+
+      <!-- COLUMN STATISTICS TABLE -->
+      <div style="margin-bottom:2rem;">
+        <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Column Statistics</div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+          <div style="overflow-x:auto;">
+            <table id="stats-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead>
+                <tr id="stats-thead" style="background:var(--bg3);"></tr>
+              </thead>
+              <tbody id="stats-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div id="analysis-primary" style="margin-bottom:2rem;">
         <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Primary Analysis</div>
         <div id="analysis-primary-content" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:1.5rem;"></div>
@@ -2006,6 +2022,126 @@ function switchMode(mode) {
 }
 
 // ─── ANALYSIS ENGINE ──────────────────────────────────────────────────────────
+// ─── ANALYSIS ENGINE ──────────────────────────────────────────────────────────
+let statsSortCol = null;
+let statsSortDir = 'asc';
+
+function buildStatsTable(stats) {
+  const cols = [
+    { key: 'name',    label: 'Column',    fmt: v => v },
+    { key: 'type',    label: 'Type',      fmt: v => v },
+    { key: 'nonNull', label: 'Non-null%', fmt: v => v + '%' },
+    { key: 'unique',  label: 'Unique',    fmt: v => v.toLocaleString() },
+    { key: 'min',     label: 'Min',       fmt: v => v === null ? '—' : v },
+    { key: 'max',     label: 'Max',       fmt: v => v === null ? '—' : v },
+    { key: 'mean',    label: 'Mean',      fmt: v => v === null ? '—' : v },
+    { key: 'median',  label: 'Median',    fmt: v => v === null ? '—' : v },
+    { key: 'std',     label: 'Std dev',   fmt: v => v === null ? '—' : v },
+    { key: 'top',     label: 'Top value', fmt: v => v },
+    { key: 'entropy', label: 'Entropy',   fmt: v => v },
+  ];
+
+  // Build rows data
+  const rows = state.headers.map(h => {
+    const s = stats.columns[h];
+    const vals = state.workingData.map(r => r[h]).filter(v => !isEffectivelyMissing(v));
+    const numeric = vals.map(v => parseFloat(v)).filter(v => !isNaN(v));
+    const sorted_v = [...numeric].sort((a, b) => a - b);
+    const median = sorted_v.length === 0 ? null
+      : sorted_v.length % 2 === 0
+        ? +((sorted_v[sorted_v.length/2-1] + sorted_v[sorted_v.length/2]) / 2).toFixed(2)
+        : +sorted_v[Math.floor(sorted_v.length/2)].toFixed(2);
+    const std = numeric.length > 1
+      ? +(Math.sqrt(numeric.reduce((a, b) => a + (b - s.mean) ** 2, 0) / numeric.length)).toFixed(2)
+      : null;
+    const freq = {};
+    vals.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
+    const topEntry = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+    const top = topEntry ? `${topEntry[0]} (${topEntry[1]})` : '—';
+    const entropy = vals.length > 0
+      ? +(-(Object.values(freq).reduce((a, c) => { const p = c / vals.length; return a + p * Math.log2(p); }, 0))).toFixed(2)
+      : 0;
+    const type = s.looksLikeDate ? 'date' : s.isNumeric ? 'numeric' : s.hasMixedTypes ? 'mixed' : 'categorical';
+    const nonNull = +(((s.totalCount - s.nullCount - s.blankCount) / s.totalCount) * 100).toFixed(1);
+
+    return {
+      name: h, type, nonNull,
+      unique: s.uniqueCount,
+      min: s.isNumeric ? s.min : null,
+      max: s.isNumeric ? s.max : null,
+      mean: s.isNumeric ? s.mean : null,
+      median: s.isNumeric ? median : null,
+      std: s.isNumeric ? std : null,
+      top, entropy,
+      _missing: 100 - nonNull,
+    };
+  });
+
+  function renderTable() {
+    const tbody = document.getElementById('stats-tbody');
+    const thead = document.getElementById('stats-thead');
+
+    // Header
+    thead.innerHTML = cols.map(c => `
+      <th onclick="sortStatsTable('${c.key}')" style="
+        padding:10px 12px;text-align:left;font-size:11px;font-family:'DM Mono',monospace;
+        letter-spacing:0.04em;color:${statsSortCol === c.key ? 'var(--accent)' : 'var(--text2)'};
+        border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;
+        user-select:none;font-weight:500;
+      ">${c.label}${statsSortCol === c.key ? (statsSortDir === 'asc' ? ' ↑' : ' ↓') : ''}</th>
+    `).join('');
+
+    // Sort
+    const sorted = [...rows].sort((a, b) => {
+      if (!statsSortCol) return 0;
+      const va = a[statsSortCol], vb = b[statsSortCol];
+      if (va === null && vb === null) return 0;
+      if (va === null) return 1;
+      if (vb === null) return -1;
+      const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+      return statsSortDir === 'asc' ? cmp : -cmp;
+    });
+
+    tbody.innerHTML = sorted.map((row, i) => {
+      const typeColor = row.type === 'numeric' ? 'var(--blue)' : row.type === 'date' ? 'var(--accent)' : row.type === 'mixed' ? 'var(--amber)' : 'var(--text2)';
+      const missingBar = row._missing > 0
+        ? `<div style="display:flex;align-items:center;gap:6px;">
+            <span>${row.nonNull}%</span>
+            <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;overflow:hidden;">
+              <div style="width:${row._missing}%;height:100%;background:var(--red);opacity:0.7;"></div>
+            </div>
+           </div>`
+        : `<span style="color:var(--accent);">${row.nonNull}%</span>`;
+
+      return `<tr style="border-bottom:1px solid var(--border);${i % 2 === 0 ? '' : 'background:rgba(255,255,255,0.015);'}">
+        <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text);white-space:nowrap;font-weight:500;">${escHtml(row.name)}</td>
+        <td style="padding:9px 12px;font-size:11px;"><span style="color:${typeColor};font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.04em;">${row.type}</span></td>
+        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;">${missingBar}</td>
+        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.unique.toLocaleString()}</td>
+        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.min === null ? '<span style="color:var(--text3);">—</span>' : row.min}</td>
+        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.max === null ? '<span style="color:var(--text3);">—</span>' : row.max}</td>
+        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.mean === null ? '<span style="color:var(--text3);">—</span>' : row.mean}</td>
+        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.median === null ? '<span style="color:var(--text3);">—</span>' : row.median}</td>
+        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.std === null ? '<span style="color:var(--text3);">—</span>' : row.std}</td>
+        <td style="padding:9px 12px;font-size:11px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(row.top)}">${escHtml(row.top)}</td>
+        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.entropy}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  window.sortStatsTable = function(key) {
+    if (statsSortCol === key) {
+      statsSortDir = statsSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      statsSortCol = key;
+      statsSortDir = 'asc';
+    }
+    renderTable();
+  };
+
+  renderTable();
+}
+
 function buildAnalysis() {
   // Destroy previous charts
   chartInstances.forEach(c => c.destroy());
@@ -2017,6 +2153,7 @@ function buildAnalysis() {
   secondary.innerHTML = '';
 
   const stats = computeStats();
+  buildStatsTable(stats);
   const ACCENT = '#c8f06a';
   const AMBER = '#f0b86a';
   const RED = '#f06a6a';
