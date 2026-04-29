@@ -1184,8 +1184,8 @@ async function analyzeDataset() {
   state.headers.forEach(h => {
     const s = stats[h];
     slimStats[h] = {
-      nulls: s.nullCount,
-      blanks: s.blankCount,
+      null_count: s.nullCount,
+      empty_string_count: s.blankCount,
       unique: s.uniqueCount,
       total: s.totalCount,
       numeric: s.isNumeric,
@@ -1355,7 +1355,12 @@ async function approveStep() {
   renderTable(false);
 
   state.conversationHistory.push({ role: 'assistant', content: JSON.stringify(state.currentStep) });
-  state.conversationHistory.push({ role: 'user', content: 'APPROVED. Please suggest the next cleaning step, or indicate done if the dataset is clean.' });
+  state.conversationHistory.push({ role: 'user', content: `APPROVED. Format: ${state.format.toUpperCase()}. Please suggest the next cleaning step, or indicate done if the dataset is clean.` });
+
+  // Keep history lean — only last 6 messages (3 exchanges) to avoid token bloat
+  if (state.conversationHistory.length > 6) {
+    state.conversationHistory = state.conversationHistory.slice(-6);
+  }
 
   document.getElementById('step-content').style.display = 'none';
   document.getElementById('step-loading').style.display = 'block';
@@ -1366,7 +1371,7 @@ async function approveStep() {
     const response = await callGemini(state.conversationHistory, 3, state.systemContext);
     const parsed = extractJSON(response);
     if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
-  } catch (e) { showError('Failed to get next step.'); }
+  } catch (e) { showError(e.message || 'Failed to get next step.'); }
 }
 
 async function denyStep() {
