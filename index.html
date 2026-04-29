@@ -603,22 +603,83 @@
   .page-btn:hover { border-color: var(--accent); color: var(--accent); }
   .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  /* CONFIG note */
-  .config-notice {
-    background: rgba(240,184,106,0.1);
-    border: 1px solid rgba(240,184,106,0.2);
-    border-radius: var(--radius);
-    padding: 0.75rem 1rem;
-    font-size: 12px;
-    color: var(--amber);
+  /* FORMAT RECOMMENDATION */
+  .format-recommendation {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
     margin-bottom: 1.5rem;
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
-    line-height: 1.6;
+    display: none;
   }
 
-  .config-notice a { color: var(--amber); }
+  .format-recommendation.visible { display: block; }
+
+  .format-rec-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 20px;
+    margin-bottom: 0.5rem;
+  }
+
+  .format-rec-sub {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 1.5rem;
+    line-height: 1.7;
+  }
+
+  .format-rec-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 1rem;
+  }
+
+  .format-rec-option {
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 1rem;
+    cursor: pointer;
+    background: var(--bg3);
+    transition: all 0.15s;
+    text-align: left;
+  }
+
+  .format-rec-option:hover { border-color: var(--accent); }
+  .format-rec-option.recommended { border-color: var(--accent); background: var(--accent-dim); }
+
+  .format-rec-option-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .rec-badge {
+    font-size: 9px;
+    background: var(--accent);
+    color: #0e0e0f;
+    padding: 1px 6px;
+    border-radius: 100px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+
+  .format-rec-option-desc {
+    font-size: 11px;
+    color: var(--text3);
+    line-height: 1.5;
+  }
+
+  .format-rec-note {
+    font-size: 12px;
+    color: var(--text3);
+    font-style: italic;
+  }
 
   /* SCROLLBAR */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -645,9 +706,25 @@
 
 <main>
 
-  <div class="config-notice">
-    <span>⚙</span>
-    <span>Set your Gemini API proxy URL in <code>config.js</code> before deploying. See <code>worker.js</code> for the Cloudflare Worker setup. Running locally without a key will use demo mode.</span>
+  <!-- FORMAT RECOMMENDATION -->
+  <div class="format-recommendation" id="format-recommendation">
+    <div class="format-rec-title">How would you like to clean this?</div>
+    <div class="format-rec-sub" id="format-rec-sub">Analysing your dataset...</div>
+    <div class="format-rec-options">
+      <div class="format-rec-option" id="rec-excel" onclick="selectFormat('excel')">
+        <div class="format-rec-option-label">Excel <span class="rec-badge" id="badge-excel" style="display:none;">recommended</span></div>
+        <div class="format-rec-option-desc">Formulas and UI steps. Best for non-technical users working directly in spreadsheets.</div>
+      </div>
+      <div class="format-rec-option" id="rec-sql" onclick="selectFormat('sql')">
+        <div class="format-rec-option-label">SQL <span class="rec-badge" id="badge-sql" style="display:none;">recommended</span></div>
+        <div class="format-rec-option-desc">ALTER and UPDATE statements. Best for data destined for a relational database.</div>
+      </div>
+      <div class="format-rec-option" id="rec-python" onclick="selectFormat('python')">
+        <div class="format-rec-option-label">Python <span class="rec-badge" id="badge-python" style="display:none;">recommended</span></div>
+        <div class="format-rec-option-desc">Pandas operations. Best for repeatable pipelines or large-scale processing.</div>
+      </div>
+    </div>
+    <div class="format-rec-note" id="format-rec-note"></div>
   </div>
 
   <!-- UPLOAD -->
@@ -669,6 +746,7 @@
           <div class="stat-item"><strong id="stat-rows">—</strong> rows</div>
           <div class="stat-item"><strong id="stat-cols">—</strong> columns</div>
           <div class="stat-item"><strong id="stat-nulls">—</strong> nulls</div>
+          <div class="stat-item"><strong id="stat-blanks">—</strong> empty</div>
         </div>
       </div>
       <button class="reset-btn" id="reset-btn">✕ New file</button>
@@ -752,7 +830,7 @@
 // Replace with your Cloudflare Worker URL after deploying worker.js
 // For local testing without a worker, set DEMO_MODE = true
 const WORKER_URL = 'https://datastep-proxy.sotempyhehe.workers.dev';
-const DEMO_MODE = false; // Set to false once worker is deployed
+const DEMO_MODE = false;
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let state = {
@@ -863,16 +941,21 @@ function parseCSV(text) {
   workspace.classList.add('visible');
 
   renderTable(false);
-  analyzeDataset();
+  showFormatRecommendation();
 }
 
 const NULL_PLACEHOLDERS = new Set(['n/a', 'na', 'null', 'none', 'nil', '-', '--', '–', '—', '?', 'unknown', 'undefined', 'missing', 'nan', '#n/a', '#na']);
 
+function isTrueNull(v) {
+  return v === null || v === undefined;
+}
+
+function isBlank(v) {
+  return typeof v === 'string' && v.trim() === '';
+}
+
 function isEffectivelyNull(v) {
-  if (v === '' || v === null || v === undefined) return true;
-  if (typeof v === 'string' && v.trim() === '') return true;
-  if (typeof v === 'string' && NULL_PLACEHOLDERS.has(v.trim().toLowerCase())) return true;
-  return false;
+  return isTrueNull(v) || isBlank(v);
 }
 
 function updateNullCount() {
@@ -881,18 +964,95 @@ function updateNullCount() {
   state.workingData.forEach(row => {
     state.headers.forEach(h => {
       const v = row[h];
-      if (v === '' || v === null || v === undefined) { trueNulls++; }
-      else if (typeof v === 'string' && (v.trim() === '' || NULL_PLACEHOLDERS.has(v.trim().toLowerCase()))) { blanks++; }
+      if (isTrueNull(v)) { trueNulls++; }
+      else if (isBlank(v)) { blanks++; }
     });
   });
-  const total = trueNulls + blanks;
-  const el = document.getElementById('stat-nulls');
-  el.textContent = total.toLocaleString();
-  el.title = `${trueNulls.toLocaleString()} true nulls + ${blanks.toLocaleString()} blank/placeholder values`;
-  el.style.cursor = 'help';
-  // Update label to reflect broader meaning
-  const label = el.nextSibling;
-  el.parentElement.lastChild.textContent = total !== trueNulls ? ' empty/null' : ' nulls';
+  document.getElementById('stat-nulls').textContent = trueNulls.toLocaleString();
+  document.getElementById('stat-blanks').textContent = blanks.toLocaleString();
+}
+
+// ─── FORMAT RECOMMENDATION ────────────────────────────────────────────────────
+async function showFormatRecommendation() {
+  const rec = document.getElementById('format-recommendation');
+  const sub = document.getElementById('format-rec-sub');
+  const note = document.getElementById('format-rec-note');
+  rec.classList.add('visible');
+  sub.textContent = 'Analysing your dataset to recommend the best format...';
+
+  // Quick heuristic analysis
+  const stats = computeStats();
+  const rowCount = state.workingData.length;
+  const colCount = state.headers.length;
+  const numericCols = Object.values(stats).filter(s => s.isNumeric).length;
+  const hasNulls = Object.values(stats).some(s => s.nullCount > 0 || s.blankCount > 0);
+
+  // Ask Gemini for a recommendation
+  let recommended = 'excel';
+  let reasoning = '';
+  let switchNote = '';
+
+  try {
+    const prompt = `You are a data engineering advisor. Given this dataset profile, recommend the best cleaning format.
+
+Dataset: ${state.fileName}
+Rows: ${rowCount}, Columns: ${colCount}
+Numeric columns: ${numericCols}/${colCount}
+Headers: ${state.headers.join(', ')}
+Has nulls/blanks: ${hasNulls}
+
+Choose ONE primary format from: excel, sql, python.
+Also indicate if a secondary format should be used partway through (e.g. start with python for bulk ops, finish in excel for review).
+
+Respond with JSON only:
+{
+  "primary": "excel|sql|python",
+  "secondary": "excel|sql|python|null",
+  "reasoning": "2-3 sentences explaining why, referencing specifics of this dataset",
+  "switch_note": "If secondary is not null: one sentence on when to switch and why. Otherwise empty string."
+}`;
+
+    const resp = await callGemini([{ role: 'user', content: prompt }]);
+    const parsed = JSON.parse(resp.replace(/```json|```/g, '').trim());
+    recommended = parsed.primary || 'excel';
+    reasoning = parsed.reasoning || '';
+    switchNote = parsed.switch_note || '';
+  } catch (e) {
+    // fallback heuristic
+    if (rowCount > 5000) { recommended = 'python'; reasoning = 'Large dataset — Python/pandas handles bulk operations most efficiently.'; }
+    else if (numericCols > colCount * 0.6) { recommended = 'sql'; reasoning = 'Predominantly numeric columns suggest this data is headed for a database.'; }
+    else { recommended = 'excel'; reasoning = 'Moderate size and mixed column types make Excel formulas the most accessible approach.'; }
+  }
+
+  // Update UI
+  state.format = recommended;
+  sub.textContent = reasoning;
+  note.textContent = switchNote;
+
+  ['excel', 'sql', 'python'].forEach(f => {
+    document.getElementById(`rec-${f}`).classList.toggle('recommended', f === recommended);
+    document.getElementById(`badge-${f}`).style.display = f === recommended ? 'inline' : 'none';
+  });
+
+  // Sync header pills
+  document.querySelectorAll('.pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.format === recommended);
+  });
+}
+
+function selectFormat(format) {
+  state.format = format;
+  ['excel', 'sql', 'python'].forEach(f => {
+    document.getElementById(`rec-${f}`).classList.toggle('recommended', f === format);
+    document.getElementById(`badge-${f}`).style.display = f === format ? 'inline' : 'none';
+  });
+  document.querySelectorAll('.pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.format === format);
+  });
+
+  // Hide rec panel and start analysis
+  document.getElementById('format-recommendation').classList.remove('visible');
+  analyzeDataset();
 }
 
 // ─── STATS COMPUTATION ────────────────────────────────────────────────────────
@@ -900,12 +1060,10 @@ function computeStats() {
   const stats = {};
   state.headers.forEach(h => {
     const vals = state.workingData.map(r => r[h]);
-    const nullCount = vals.filter(v => isEffectivelyNull(v)).length;
-    const placeholderCount = vals.filter(v => {
-      if (v === '' || v === null || v === undefined) return false;
-      return typeof v === 'string' && NULL_PLACEHOLDERS.has(v.trim().toLowerCase());
-    }).length;
-    const nonNull = vals.filter(v => !isEffectivelyNull(v));
+    const nullCount = vals.filter(v => isTrueNull(v)).length;
+    const blankCount = vals.filter(v => isBlank(v)).length;
+    const placeholderCount = vals.filter(v => !isTrueNull(v) && !isBlank(v) && typeof v === 'string' && NULL_PLACEHOLDERS.has(v.trim().toLowerCase())).length;
+    const nonNull = vals.filter(v => !isTrueNull(v) && !isBlank(v));
     const numeric = nonNull.map(v => parseFloat(v)).filter(v => !isNaN(v));
     const unique = [...new Set(nonNull)];
     const freq = {};
@@ -914,8 +1072,8 @@ function computeStats() {
 
     stats[h] = {
       nullCount,
+      blankCount,
       placeholderCount,
-      effectivelyEmptyCount: nullCount + placeholderCount,
       uniqueCount: unique.length,
       totalCount: vals.length,
       sample: nonNull.slice(0, 5),
@@ -1334,13 +1492,21 @@ function exportCSV() {
 
 // ─── RESET ────────────────────────────────────────────────────────────────────
 function resetAll() {
-  state = { rawData: [], workingData: [], headers: [], fileName: '', format: state.format,
+  state = { rawData: [], workingData: [], headers: [], fileName: '', format: 'excel',
     stepIndex: 0, history: [], currentStep: null, changedCells: {}, page: 0, pageSize: 50,
     searchQuery: '', conversationHistory: [] };
   demoStepIndex = 0;
   workspace.classList.remove('visible');
   uploadZone.classList.remove('hidden');
   fileInput.value = '';
+  document.getElementById('format-recommendation').classList.remove('visible');
+  document.getElementById('format-rec-sub').textContent = 'Analysing your dataset...';
+  document.getElementById('format-rec-note').textContent = '';
+  ['excel', 'sql', 'python'].forEach(f => {
+    document.getElementById(`rec-${f}`).classList.remove('recommended');
+    document.getElementById(`badge-${f}`).style.display = 'none';
+  });
+  document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.format === 'excel'));
   document.getElementById('search-input').value = '';
   document.getElementById('table-wrap').innerHTML = '<div style="padding: 3rem; text-align: center; color: var(--text3); font-size: 13px;">Upload a CSV to preview your data here</div>';
   document.getElementById('history-track').innerHTML = '<div class="history-empty">No steps approved yet.</div>';
