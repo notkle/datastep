@@ -448,7 +448,6 @@
           <div class="stat-item"><strong id="stat-cols">—</strong> columns</div>
           <div class="stat-item"><strong id="stat-nulls">—</strong> nulls</div>
           <div class="stat-item"><strong id="stat-blanks">—</strong> empty</div>
-          <div class="stat-item"><strong id="stat-steps">—</strong> issues found</div>
         </div>
       </div>
       <button class="reset-btn" id="reset-btn">✕ New file</button>
@@ -834,7 +833,6 @@ function buildSteps() {
   });
 
   state.steps = steps;
-  document.getElementById('stat-steps').textContent = steps.length;
 }
 
 // ─── FIX GENERATOR (deterministic steps) ─────────────────────────────────────
