@@ -12,7 +12,6 @@
     --bg: #0e0e0f;
     --bg2: #161618;
     --bg3: #1e1e21;
-    --bg4: #252528;
     --border: rgba(255,255,255,0.08);
     --border2: rgba(255,255,255,0.14);
     --text: #f0efe8;
@@ -24,7 +23,6 @@
     --red: #f06a6a;
     --red-dim: rgba(240,106,106,0.12);
     --amber: #f0b86a;
-    --blue: #6ab4f0;
     --radius: 10px;
     --radius-lg: 16px;
   }
@@ -39,7 +37,6 @@
     line-height: 1.6;
   }
 
-  /* HEADER */
   header {
     border-bottom: 1px solid var(--border);
     padding: 0 2rem;
@@ -53,44 +50,12 @@
     background: var(--bg);
   }
 
-  .logo {
-    font-family: 'Instrument Serif', serif;
-    font-size: 22px;
-    color: var(--text);
-    letter-spacing: -0.02em;
-  }
-
+  .logo { font-family: 'Instrument Serif', serif; font-size: 22px; letter-spacing: -0.02em; }
   .logo span { color: var(--accent); }
 
-  .format-pills {
-    display: flex;
-    gap: 6px;
-  }
+  main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
 
-  .pill {
-    padding: 5px 14px;
-    border-radius: 100px;
-    border: 1px solid var(--border2);
-    font-size: 12px;
-    font-family: 'DM Mono', monospace;
-    cursor: pointer;
-    background: transparent;
-    color: var(--text2);
-    transition: all 0.15s;
-    letter-spacing: 0.04em;
-  }
-
-  .pill:hover { border-color: var(--accent); color: var(--accent); }
-  .pill.active { background: var(--accent); color: #0e0e0f; border-color: var(--accent); font-weight: 500; }
-
-  /* MAIN LAYOUT */
-  main {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
-
-  /* UPLOAD ZONE */
+  /* UPLOAD */
   #upload-zone {
     border: 1px dashed var(--border2);
     border-radius: var(--radius-lg);
@@ -100,635 +65,361 @@
     transition: all 0.2s;
     background: var(--bg2);
     margin-bottom: 2rem;
-    position: relative;
-    z-index: 1;
   }
-
-  #upload-zone:hover, #upload-zone.drag-over {
-    border-color: var(--accent);
-    background: var(--accent-dim);
-  }
-
+  #upload-zone:hover, #upload-zone.drag-over { border-color: var(--accent); background: var(--accent-dim); }
   #upload-zone.hidden { display: none; }
-
   .upload-icon {
-    width: 48px;
-    height: 48px;
+    width: 48px; height: 48px;
     border: 1px solid var(--border2);
     border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     margin: 0 auto 1.5rem;
     font-size: 20px;
   }
-
-  .upload-title {
-    font-family: 'Instrument Serif', serif;
-    font-size: 24px;
-    margin-bottom: 0.5rem;
-    color: var(--text);
-  }
-
+  .upload-title { font-family: 'Instrument Serif', serif; font-size: 24px; margin-bottom: 0.5rem; }
   .upload-sub { color: var(--text2); font-size: 13px; }
   .upload-sub strong { color: var(--accent); font-weight: 400; }
+
+  /* FORMAT OVERLAY */
+  #format-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(14,14,15,0.92);
+    z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  #format-overlay.visible { display: flex; }
+  .format-overlay-box {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem; width: 480px; text-align: center;
+  }
+  .format-overlay-title { font-family: 'Instrument Serif', serif; font-size: 26px; margin-bottom: 0.4rem; }
+  .format-overlay-sub { font-size: 13px; color: var(--text2); margin-bottom: 1.75rem; }
+  .format-overlay-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .format-overlay-option {
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 1.25rem 1rem;
+    cursor: pointer; background: var(--bg3); transition: all 0.15s;
+  }
+  .format-overlay-option:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .format-overlay-label { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .format-overlay-desc { font-size: 11px; color: var(--text3); line-height: 1.4; }
 
   /* WORKSPACE */
   #workspace { display: none; }
   #workspace.visible { display: block; }
 
-  /* FILE BAR */
   .file-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between;
     padding: 10px 16px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: 1.5rem;
-    font-size: 13px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 1.5rem; font-size: 13px;
   }
-
-  .file-bar-left { display: flex; align-items: center; gap: 10px; color: var(--text2); }
+  .file-bar-left { display: flex; align-items: center; gap: 10px; }
   .file-name { color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; }
   .file-stats { display: flex; gap: 16px; }
   .stat-item { color: var(--text3); font-size: 12px; }
   .stat-item strong { color: var(--text2); }
-
   .reset-btn {
-    background: transparent;
-    border: 1px solid var(--border2);
-    color: var(--text2);
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    transition: all 0.15s;
+    background: transparent; border: 1px solid var(--border2);
+    color: var(--text2); padding: 4px 12px; border-radius: 6px;
+    font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s;
   }
   .reset-btn:hover { border-color: var(--red); color: var(--red); }
 
-  /* TWO COLUMN */
   .workspace-grid {
     display: grid;
-    grid-template-columns: 340px 1fr;
-    gap: 1.5rem;
-    align-items: start;
+    grid-template-columns: 360px 1fr;
+    gap: 1.5rem; align-items: start;
   }
 
   /* STEP PANEL */
   .step-panel {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    position: sticky;
-    top: 72px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+    position: sticky; top: 72px;
   }
-
   .step-panel-header {
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
   }
-
-  .step-label {
-    font-size: 11px;
-    font-family: 'DM Mono', monospace;
-    letter-spacing: 0.08em;
-    color: var(--text3);
-    text-transform: uppercase;
-  }
-
-  .step-counter {
-    font-size: 11px;
-    font-family: 'DM Mono', monospace;
-    color: var(--text3);
-  }
+  .step-label { font-size: 11px; font-family: 'DM Mono', monospace; letter-spacing: 0.08em; color: var(--text3); text-transform: uppercase; }
+  .step-counter { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text3); }
 
   .step-body { padding: 1.5rem; }
 
-  .step-title {
-    font-family: 'Instrument Serif', serif;
-    font-size: 20px;
-    line-height: 1.3;
-    margin-bottom: 0.75rem;
-    color: var(--text);
+  .step-title { font-family: 'Instrument Serif', serif; font-size: 20px; line-height: 1.3; margin-bottom: 0.5rem; }
+
+  .step-what {
+    font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace;
+    letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.5rem;
   }
 
   .step-rationale {
-    font-size: 13px;
-    color: var(--text2);
-    line-height: 1.7;
-    margin-bottom: 1.25rem;
+    font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 1.25rem;
+  }
+  .step-rationale ol { list-style: decimal; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 4px; margin-top: 0.5rem; }
+  .step-rationale ol li { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+  /* PROMPT BOX */
+  .prompt-box {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem;
+    font-size: 12px; color: var(--text2); line-height: 1.7;
+    margin-bottom: 1rem; position: relative;
+    font-family: 'DM Sans', sans-serif;
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 180px; overflow-y: auto;
   }
 
-  .step-rationale ol {
-    list-style: decimal;
-    padding-left: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 0.5rem;
-  }
-
-  .step-rationale ol li {
-    font-size: 12px;
-    color: var(--text2);
-    line-height: 1.5;
-    padding-left: 2px;
-  }
-
-  .step-code {
-    background: var(--bg3);
-    border: 1px solid var(--border);
+  .btn-copy {
+    width: 100%; padding: 10px;
+    background: var(--bg3); color: var(--accent);
+    border: 1px solid var(--accent);
     border-radius: var(--radius);
-    padding: 1rem;
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    color: var(--accent);
-    line-height: 1.7;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-wrap: break-word;
-    margin-bottom: 1.25rem;
-    min-height: 60px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+    margin-bottom: 8px; letter-spacing: 0.02em;
+  }
+  .btn-copy:hover { background: var(--accent-dim); }
+  .btn-copy.copied { background: var(--accent); color: #0e0e0f; }
+
+  /* DIRECT FIX BOX */
+  .fix-label {
+    font-size: 10px; font-family: 'DM Mono', monospace;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text3); margin-bottom: 6px;
+  }
+  .fix-box {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem;
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--accent); line-height: 1.8;
+    white-space: pre-wrap; word-break: break-word;
+    margin-bottom: 8px;
+  }
+
+  /* WATCH OUT BOX */
+  .watchout-box {
+    background: rgba(240,184,106,0.08);
+    border: 1px solid rgba(240,184,106,0.25);
+    border-radius: var(--radius);
+    padding: 0.875rem 1rem;
+    margin-bottom: 1rem;
+    display: none;
+  }
+  .watchout-box.visible { display: block; }
+  .watchout-label {
+    font-size: 10px; font-family: 'DM Mono', monospace;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--amber); margin-bottom: 0.5rem;
+  }
+  .watchout-box ul {
+    list-style: none; display: flex; flex-direction: column; gap: 5px;
+  }
+  .watchout-box ul li {
+    font-size: 11px; color: var(--text2); line-height: 1.5;
+    padding-left: 0.875rem; position: relative;
+  }
+  .watchout-box ul li::before {
+    content: '⚠';
+    position: absolute; left: 0;
+    font-size: 9px; color: var(--amber); top: 1px;
   }
 
   .step-actions { display: flex; flex-direction: column; gap: 8px; }
 
-  .btn-approve {
-    width: 100%;
-    padding: 11px;
-    background: var(--accent);
-    color: #0e0e0f;
-    border: none;
-    border-radius: var(--radius);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    transition: all 0.15s;
-    letter-spacing: 0.01em;
+  .btn-complete {
+    width: 100%; padding: 11px;
+    background: var(--accent); color: #0e0e0f;
+    border: none; border-radius: var(--radius);
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s;
   }
+  .btn-complete:hover { background: var(--accent2); }
 
-  .btn-approve:hover { background: var(--accent2); }
-  .btn-approve:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .btn-deny {
-    width: 100%;
-    padding: 11px;
-    background: transparent;
-    color: var(--red);
-    border: 1px solid var(--red-dim);
-    border-radius: var(--radius);
-    font-size: 14px;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    transition: all 0.15s;
+  .btn-skip {
+    width: 100%; padding: 11px;
+    background: transparent; color: var(--text3);
+    border: 1px solid var(--border2); border-radius: var(--radius);
+    font-size: 14px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s;
   }
+  .btn-skip:hover { border-color: var(--text2); color: var(--text2); }
 
-  .btn-deny:hover { background: var(--red-dim); border-color: var(--red); }
-  .btn-deny:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  /* DENY FEEDBACK */
-  .deny-box {
-    display: none;
-    margin-top: 1rem;
-    padding: 1rem;
-    background: var(--red-dim);
-    border: 1px solid rgba(240,106,106,0.2);
-    border-radius: var(--radius);
-  }
-
-  .deny-box.visible { display: block; }
-
-  .deny-box textarea {
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    resize: none;
-    outline: none;
-    min-height: 70px;
-    line-height: 1.6;
-  }
-
-  .deny-box textarea::placeholder { color: var(--text3); }
-
-  .deny-submit {
-    margin-top: 8px;
-    padding: 7px 14px;
-    background: var(--red);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    transition: opacity 0.15s;
-  }
-
-  .deny-submit:hover { opacity: 0.85; }
-
-  /* HISTORY TRACK */
+  /* HISTORY */
   .history-track {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 200px;
-    overflow-y: auto;
+    padding: 1rem 1.5rem; border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 180px; overflow-y: auto;
   }
-
   .history-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--text3);
-    padding: 4px 0;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text3); padding: 3px 0;
   }
-
-  .history-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-    flex-shrink: 0;
-  }
-
+  .history-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .history-skipped .history-dot { background: var(--text3); }
   .history-empty { font-size: 12px; color: var(--text3); font-style: italic; }
 
-  /* DATA TABLE PANEL */
+  /* DONE STATE */
+  .done-state { padding: 2rem 1.5rem; text-align: center; }
+  .done-icon {
+    width: 48px; height: 48px; background: var(--accent-dim);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1rem; font-size: 20px;
+  }
+  .done-title { font-family: 'Instrument Serif', serif; font-size: 20px; margin-bottom: 0.5rem; }
+  .done-sub { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; }
+  .btn-export {
+    width: 100%; padding: 11px; background: var(--accent); color: #0e0e0f;
+    border: none; border-radius: var(--radius); font-size: 14px; font-weight: 500;
+    cursor: pointer; font-family: 'DM Sans', sans-serif; margin-bottom: 8px;
+  }
+  .btn-restart {
+    width: 100%; padding: 11px; background: transparent; color: var(--text2);
+    border: 1px solid var(--border2); border-radius: var(--radius);
+    font-size: 14px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+  }
+
+  /* DATA TABLE */
   .data-panel {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
   }
-
   .data-panel-header {
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
   }
+  .data-panel-title { font-size: 12px; font-family: 'DM Mono', monospace; letter-spacing: 0.06em; color: var(--text3); text-transform: uppercase; }
+  .diff-legend { display: flex; gap: 12px; font-size: 11px; color: var(--text3); align-items: center; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 4px; }
 
-  .data-panel-title {
-    font-size: 12px;
-    font-family: 'DM Mono', monospace;
-    letter-spacing: 0.06em;
-    color: var(--text3);
-    text-transform: uppercase;
-  }
-
-  .diff-legend {
-    display: flex;
-    gap: 12px;
-    font-size: 11px;
-    color: var(--text3);
-    align-items: center;
-  }
-
-  .legend-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-    display: inline-block;
-    margin-right: 4px;
-  }
-
-  .search-bar {
-    padding: 0.75rem 1.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-
+  .search-bar { padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border); }
   .search-bar input {
-    width: 100%;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 7px 12px;
-    color: var(--text);
-    font-size: 13px;
-    font-family: 'DM Sans', sans-serif;
-    outline: none;
-    transition: border-color 0.15s;
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 12px; color: var(--text);
+    font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s;
   }
-
   .search-bar input:focus { border-color: var(--accent); }
   .search-bar input::placeholder { color: var(--text3); }
 
-  .table-wrap {
-    overflow: auto;
-    max-height: 520px;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-  }
-
-  thead {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-
-  thead tr {
-    background: var(--bg3);
-  }
-
+  .table-wrap { overflow: auto; max-height: 520px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead { position: sticky; top: 0; z-index: 10; }
+  thead tr { background: var(--bg3); }
   th {
-    padding: 10px 14px;
-    text-align: left;
-    font-weight: 500;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text2);
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-    letter-spacing: 0.04em;
+    padding: 10px 14px; text-align: left; font-weight: 500;
+    font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2);
+    border-bottom: 1px solid var(--border); white-space: nowrap; letter-spacing: 0.04em;
   }
-
   td {
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text2);
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
+    padding: 8px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text2); max-width: 200px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+    font-family: 'DM Mono', monospace; font-size: 11px;
   }
-
   tr:last-child td { border-bottom: none; }
-
   tr.changed td { background: rgba(200,240,106,0.04); }
-  td.cell-changed {
-    background: rgba(200,240,106,0.12) !important;
-    color: var(--accent) !important;
-    position: relative;
-  }
-
-  td.cell-was {
-    background: rgba(240,106,106,0.08) !important;
-    color: var(--red) !important;
-    text-decoration: line-through;
-  }
-
-  td.cell-null {
-    color: var(--text3) !important;
-    font-style: italic;
-  }
-
-  /* LOADING STATE */
-  .loading-state {
-    padding: 2rem 1.5rem;
-    text-align: center;
-  }
-
-  .spinner {
-    width: 28px;
-    height: 28px;
-    border: 2px solid var(--border2);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 1rem;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .loading-text { font-size: 13px; color: var(--text3); }
-
-  /* ANALYSIS LOADING */
-  #analysis-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(14,14,15,0.9);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  #analysis-overlay.visible {
-    display: flex;
-  }
-
-  .analysis-spinner {
-    width: 40px;
-    height: 40px;
-    border: 2px solid var(--border2);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  .analysis-text {
-    font-family: 'Instrument Serif', serif;
-    font-size: 22px;
-    color: var(--text);
-  }
-
-  .analysis-sub { font-size: 13px; color: var(--text3); }
-
-  /* DONE STATE */
-  .done-state {
-    padding: 2rem 1.5rem;
-    text-align: center;
-  }
-
-  .done-icon {
-    width: 48px;
-    height: 48px;
-    background: var(--accent-dim);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1rem;
-    font-size: 20px;
-  }
-
-  .done-title {
-    font-family: 'Instrument Serif', serif;
-    font-size: 20px;
-    margin-bottom: 0.5rem;
-  }
-
-  .done-sub { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; }
-
-  .btn-export {
-    width: 100%;
-    padding: 11px;
-    background: var(--accent);
-    color: #0e0e0f;
-    border: none;
-    border-radius: var(--radius);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    margin-bottom: 8px;
-  }
-
-  .btn-restart {
-    width: 100%;
-    padding: 11px;
-    background: transparent;
-    color: var(--text2);
-    border: 1px solid var(--border2);
-    border-radius: var(--radius);
-    font-size: 14px;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-  }
+  td.cell-changed { background: rgba(200,240,106,0.12) !important; color: var(--accent) !important; }
+  td.cell-null { color: var(--red) !important; font-style: italic; opacity: 0.7; }
+  td.cell-empty { color: var(--text3) !important; font-style: italic; }
 
   .pagination {
-    padding: 0.75rem 1.5rem;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 12px;
-    color: var(--text3);
+    padding: 0.75rem 1.5rem; border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; color: var(--text3);
   }
-
   .page-btns { display: flex; gap: 6px; }
-
   .page-btn {
-    padding: 4px 10px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    color: var(--text2);
-    font-size: 11px;
-    cursor: pointer;
-    font-family: 'DM Mono', monospace;
-    transition: all 0.15s;
+    padding: 4px 10px; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--text2); font-size: 11px; cursor: pointer;
+    font-family: 'DM Mono', monospace; transition: all 0.15s;
   }
-
   .page-btn:hover { border-color: var(--accent); color: var(--accent); }
   .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  /* SCROLLBAR */
+  /* ISSUE SUMMARY */
+  .issue-summary {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.875rem 1rem;
+    margin-bottom: 8px;
+    display: none;
+  }
+  .issue-summary.visible { display: block; }
+  .issue-summary-label {
+    font-size: 10px; font-family: 'DM Mono', monospace;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text3); margin-bottom: 0.5rem;
+  }
+  .issue-summary ul {
+    list-style: none; display: flex; flex-direction: column; gap: 4px;
+  }
+  .issue-summary ul li {
+    font-size: 12px; color: var(--text2); line-height: 1.5;
+    padding-left: 1rem; position: relative;
+  }
+  .issue-summary ul li::before {
+    content: '·';
+    position: absolute; left: 0; color: var(--accent); font-weight: bold;
+  }
+
+  /* STEP NAV */
+  .step-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 0; margin-top: 4px;
+  }
+  .btn-nav {
+    width: 38px; height: 38px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: var(--radius); color: var(--text2);
+    font-size: 16px; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-nav:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn-nav:disabled { opacity: 0.25; cursor: not-allowed; }
+  .step-nav-label { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; }
+
+  .btn-view-prompt {
+    width: 100%; padding: 7px;
+    background: transparent; color: var(--text3);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 12px; cursor: pointer; font-family: 'DM Mono', monospace;
+    transition: all 0.15s; letter-spacing: 0.04em;
+  }
+  .btn-view-prompt:hover { border-color: var(--border2); color: var(--text2); }
+
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
-
-  /* FORMAT OVERLAY */
-  #format-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(14,14,15,0.92);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
-  }
-  #format-overlay.visible { display: flex; }
-
-  .format-overlay-box {
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    border-radius: var(--radius-lg);
-    padding: 2.5rem;
-    width: 480px;
-    text-align: center;
-  }
-
-  .format-overlay-title {
-    font-family: 'Instrument Serif', serif;
-    font-size: 26px;
-    margin-bottom: 0.4rem;
-  }
-
-  .format-overlay-sub {
-    font-size: 13px;
-    color: var(--text2);
-    margin-bottom: 1.75rem;
-  }
-
-  .format-overlay-options {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-  }
-
-  .format-overlay-option {
-    border: 1px solid var(--border2);
-    border-radius: var(--radius);
-    padding: 1.25rem 1rem;
-    cursor: pointer;
-    background: var(--bg3);
-    transition: all 0.15s;
-  }
-
-  .format-overlay-option:hover {
-    border-color: var(--accent);
-    background: var(--accent-dim);
-  }
-
-  .format-overlay-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text);
-    margin-bottom: 4px;
-  }
-
-  .format-overlay-desc {
-    font-size: 11px;
-    color: var(--text3);
-    line-height: 1.4;
-  }
 </style>
 </head>
 <body>
 
 <header>
   <div class="logo">data<span>step</span></div>
-  <div class="format-pills">
-    <button class="pill active" data-format="excel">Excel</button>
-    <button class="pill" data-format="sql">SQL</button>
-    <button class="pill" data-format="python">Python</button>
-  </div>
 </header>
 
-<div id="analysis-overlay">
-  <div class="analysis-spinner"></div>
-  <div class="analysis-text">Analyzing dataset...</div>
-  <div class="analysis-sub" id="analysis-sub">Computing statistics across all rows</div>
-</div>
-
+<!-- FORMAT SELECTION OVERLAY -->
 <div id="format-overlay">
   <div class="format-overlay-box">
     <div class="format-overlay-title">Choose your format</div>
-    <div class="format-overlay-sub">How should cleaning steps be written?</div>
+    <div class="format-overlay-sub">Prompts will be tailored to your chosen tool</div>
     <div class="format-overlay-options">
-      <div class="format-overlay-option" onclick="selectFormatAndAnalyze('excel')">
+      <div class="format-overlay-option" onclick="selectFormat('excel')">
         <div class="format-overlay-label">Excel</div>
-        <div class="format-overlay-desc">Formulas and UI steps</div>
+        <div class="format-overlay-desc">Step-by-step instructions</div>
       </div>
-      <div class="format-overlay-option" onclick="selectFormatAndAnalyze('sql')">
+      <div class="format-overlay-option" onclick="selectFormat('sql')">
         <div class="format-overlay-label">SQL</div>
-        <div class="format-overlay-desc">ALTER and UPDATE statements</div>
+        <div class="format-overlay-desc">Query-based fixes</div>
       </div>
-      <div class="format-overlay-option" onclick="selectFormatAndAnalyze('python')">
+      <div class="format-overlay-option" onclick="selectFormat('python')">
         <div class="format-overlay-label">Python</div>
         <div class="format-overlay-desc">pandas operations</div>
       </div>
@@ -737,8 +428,6 @@
 </div>
 
 <main>
-
-
   <!-- UPLOAD -->
   <div id="upload-zone">
     <input type="file" id="file-input" accept=".csv" style="display:none;">
@@ -752,13 +441,14 @@
 
     <div class="file-bar">
       <div class="file-bar-left">
-        <span style="color: var(--accent); font-size: 14px;">▣</span>
+        <span style="color:var(--accent);font-size:14px;">▣</span>
         <span class="file-name" id="file-name-display">—</span>
         <div class="file-stats">
           <div class="stat-item"><strong id="stat-rows">—</strong> rows</div>
           <div class="stat-item"><strong id="stat-cols">—</strong> columns</div>
           <div class="stat-item"><strong id="stat-nulls">—</strong> nulls</div>
           <div class="stat-item"><strong id="stat-blanks">—</strong> empty</div>
+          <div class="stat-item"><strong id="stat-steps">—</strong> issues found</div>
         </div>
       </div>
       <button class="reset-btn" id="reset-btn">✕ New file</button>
@@ -773,56 +463,72 @@
           <div class="step-counter" id="step-counter">—</div>
         </div>
 
-        <div id="step-loading" class="loading-state" style="display:none;">
-          <div class="spinner"></div>
-          <div class="loading-text" id="step-loading-text">Evaluating next step...</div>
-        </div>
-
-        <div id="step-done" class="done-state" style="display:none;">
-          <div class="done-icon">✓</div>
-          <div class="done-title">Cleaning complete</div>
-          <div class="done-sub" id="done-sub">All recommended steps applied.</div>
-          <button class="btn-export" id="export-btn">Export cleaned CSV</button>
-          <button class="btn-restart" id="restart-btn">Start over</button>
-        </div>
-
         <div id="step-content">
           <div class="step-body">
-            <div class="step-title" id="step-title">Waiting for analysis...</div>
-            <div class="step-rationale" id="step-rationale">Upload a CSV to begin the guided cleaning process.</div>
-            <div class="step-code" id="step-code" style="display:none;"></div>
+            <div class="step-what" id="step-what"></div>
+            <div class="step-title" id="step-title">Upload a CSV to begin</div>
+            <div class="step-rationale" id="step-rationale">DataStep will analyze your dataset and generate a step-by-step cleaning guide with prompts to paste into Claude.</div>
+
+            <div class="watchout-box" id="watchout-box">
+              <div class="watchout-label">Before you apply this</div>
+              <ul id="watchout-list"></ul>
+            </div>
+
             <div class="step-actions" id="step-actions" style="display:none;">
-              <button class="btn-approve" id="btn-approve">✓ Approve this step</button>
-              <button class="btn-deny" id="btn-deny">✗ Deny — something's wrong</button>
-              <div class="deny-box" id="deny-box">
-                <textarea id="deny-feedback" placeholder="What went wrong? Be specific — the AI will re-evaluate." rows="3"></textarea>
-                <button class="deny-submit" id="deny-submit">Re-evaluate →</button>
+              <div class="issue-summary" id="issue-summary">
+                <div class="issue-summary-label">The issue in brief</div>
+                <ul id="issue-summary-list"></ul>
+              </div>
+
+              <!-- DETERMINISTIC PATH: direct fix -->
+              <div id="fix-path" style="display:none;">
+                <div class="fix-label">Apply this fix</div>
+                <div class="fix-box" id="fix-box"></div>
+                <button class="btn-copy" id="btn-copy-fix" onclick="copyFix()">⎘ Copy fix</button>
+              </div>
+
+              <!-- CLAUDE PATH: prompt -->
+              <div id="claude-path" style="display:none;">
+                <button class="btn-copy" id="btn-copy" onclick="copyPrompt()">⎘ Copy prompt for Claude</button>
+                <button class="btn-view-prompt" id="btn-view-prompt" onclick="togglePrompt()">▾ View full prompt</button>
+                <div class="prompt-box" id="prompt-box" style="display:none;"></div>
+              </div>
+
+              <div class="step-nav">
+                <button class="btn-nav" id="btn-prev" onclick="navigateStep(-1)">←</button>
+                <span class="step-nav-label" id="step-nav-label">—</span>
+                <button class="btn-nav" id="btn-next" onclick="navigateStep(1)">→</button>
               </div>
             </div>
           </div>
         </div>
 
+        <div id="step-done" class="done-state" style="display:none;">
+          <div class="done-icon">✓</div>
+          <div class="done-title">All steps reviewed</div>
+          <div class="done-sub" id="done-sub">You've reached the end of all detected issues.</div>
+          <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+          <button class="btn-restart" onclick="resetAll()">Start over</button>
+        </div>
+
         <div class="history-track" id="history-track">
-          <div class="history-empty">No steps approved yet.</div>
+          <div class="history-empty">No steps visited yet.</div>
         </div>
       </div>
 
       <!-- RIGHT: DATA TABLE -->
       <div class="data-panel">
         <div class="data-panel-header">
-          <div class="data-panel-title" id="table-mode-label">Current data</div>
+          <div class="data-panel-title" id="table-mode-label">Dataset preview</div>
           <div class="diff-legend" id="diff-legend" style="display:none;">
-            <span><span class="legend-dot" style="background:rgba(200,240,106,0.5);"></span>changed</span>
-            <span><span class="legend-dot" style="background:rgba(240,106,106,0.3);"></span>original</span>
+            <span><span class="legend-dot" style="background:rgba(200,240,106,0.5);"></span>affected</span>
           </div>
         </div>
         <div class="search-bar">
           <input type="text" id="search-input" placeholder="Search all cells...">
         </div>
         <div class="table-wrap" id="table-wrap">
-          <div style="padding: 3rem; text-align: center; color: var(--text3); font-size: 13px;">
-            Upload a CSV to preview your data here
-          </div>
+          <div style="padding:3rem;text-align:center;color:var(--text3);font-size:13px;">Upload a CSV to preview your data here</div>
         </div>
         <div class="pagination">
           <span id="page-info">—</span>
@@ -839,40 +545,31 @@
 
 <script>
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-// Replace with your Cloudflare Worker URL after deploying worker.js
-// For local testing without a worker, set DEMO_MODE = true
-const WORKER_URL = 'https://datastep-proxy.sotempyhehe.workers.dev';
-const DEMO_MODE = false;
-
-// ─── STATE ────────────────────────────────────────────────────────────────────
 let state = {
   rawData: [],
   workingData: [],
   headers: [],
   fileName: '',
   format: 'excel',
+  steps: [],
   stepIndex: 0,
-  history: [],          // [{title, code}]
-  snapshots: [],        // [{workingData, headers, title}] — one per approved step
-  currentStep: null,
+  visited: new Set(),
   changedCells: {},
   page: 0,
   pageSize: 50,
   searchQuery: '',
-  conversationHistory: [],
-  systemContext: null
 };
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
+// ─── DOM REFS ─────────────────────────────────────────────────────────────────
 const uploadZone = document.getElementById('upload-zone');
-const fileInput = document.getElementById('file-input');
-const workspace = document.getElementById('workspace');
+const fileInput  = document.getElementById('file-input');
+const workspace  = document.getElementById('workspace');
 
+// ─── UPLOAD ───────────────────────────────────────────────────────────────────
 window.addEventListener('beforeunload', e => {
   if (state.workingData.length > 0) {
     e.preventDefault();
     e.returnValue = 'Your data will be cleared if you leave. Export your CSV first if needed.';
-    return e.returnValue;
   }
 });
 
@@ -882,22 +579,7 @@ uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag
 uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
 fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 
-document.querySelectorAll('.pill').forEach(p => {
-  p.addEventListener('click', () => {
-    document.querySelectorAll('.pill').forEach(x => x.classList.remove('active'));
-    p.classList.add('active');
-    state.format = p.dataset.format;
-  });
-});
-
 document.getElementById('reset-btn').addEventListener('click', resetAll);
-document.getElementById('restart-btn').addEventListener('click', resetAll);
-document.getElementById('btn-approve').addEventListener('click', approveStep);
-document.getElementById('btn-deny').addEventListener('click', () => {
-  document.getElementById('deny-box').classList.toggle('visible');
-});
-document.getElementById('deny-submit').addEventListener('click', denyStep);
-document.getElementById('export-btn').addEventListener('click', exportCSV);
 document.getElementById('search-input').addEventListener('input', e => {
   state.searchQuery = e.target.value.toLowerCase();
   state.page = 0;
@@ -905,19 +587,25 @@ document.getElementById('search-input').addEventListener('input', e => {
 });
 document.getElementById('prev-page').addEventListener('click', () => { if (state.page > 0) { state.page--; renderTable(); } });
 document.getElementById('next-page').addEventListener('click', () => {
-  const filtered = getFilteredRows();
-  const maxPage = Math.ceil(filtered.length / state.pageSize) - 1;
+  const total = getFilteredRows().length;
+  const maxPage = Math.ceil(total / state.pageSize) - 1;
   if (state.page < maxPage) { state.page++; renderTable(); }
 });
+
+// ─── FORMAT SELECTION ─────────────────────────────────────────────────────────
+function selectFormat(format) {
+  state.format = format;
+  document.getElementById('format-overlay').classList.remove('visible');
+  buildSteps();
+  showStep(0);
+}
 
 // ─── FILE PARSE ───────────────────────────────────────────────────────────────
 function handleFile(file) {
   if (!file || !file.name.endsWith('.csv')) return alert('Please upload a CSV file.');
   state.fileName = file.name;
   const reader = new FileReader();
-  reader.onload = e => {
-    parseCSV(e.target.result);
-  };
+  reader.onload = e => parseCSV(e.target.result);
   reader.readAsText(file);
 }
 
@@ -925,22 +613,22 @@ function parseCSV(text) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return alert('CSV appears empty.');
 
-  const parseRow = (line, trimValues = false) => {
+  const parseRow = (line, trim = false) => {
     const result = [];
     let cur = '', inQ = false;
     for (let i = 0; i < line.length; i++) {
       const c = line[i];
       if (c === '"') { inQ = !inQ; }
-      else if (c === ',' && !inQ) { result.push(trimValues ? cur.trim() : cur); cur = ''; }
+      else if (c === ',' && !inQ) { result.push(trim ? cur.trim() : cur); cur = ''; }
       else { cur += c; }
     }
-    result.push(trimValues ? cur.trim() : cur);
+    result.push(trim ? cur.trim() : cur);
     return result;
   };
 
-  state.headers = parseRow(lines[0], true); // always trim headers
+  state.headers = parseRow(lines[0], true);
   state.rawData = lines.slice(1).filter(l => l.trim()).map(l => {
-    const vals = parseRow(l, false); // preserve whitespace in data
+    const vals = parseRow(l, false);
     const row = {};
     state.headers.forEach((h, i) => { row[h] = vals[i] !== undefined ? vals[i] : ''; });
     return row;
@@ -949,626 +637,696 @@ function parseCSV(text) {
   state.workingData = state.rawData.map(r => ({ ...r }));
   state.stepIndex = 0;
   state.history = [];
-  state.currentStep = null;
+  state.steps = [];
   state.changedCells = {};
   state.page = 0;
-  state.conversationHistory = [];
 
   document.getElementById('file-name-display').textContent = state.fileName;
   document.getElementById('stat-rows').textContent = state.workingData.length.toLocaleString();
   document.getElementById('stat-cols').textContent = state.headers.length;
-  updateNullCount();
+  updateCounts();
 
   uploadZone.classList.add('hidden');
   workspace.classList.add('visible');
+  renderTable();
 
-  renderTable(false);
   document.getElementById('format-overlay').classList.add('visible');
 }
 
-const NULL_PLACEHOLDERS = new Set(['n/a', 'na', 'null', 'none', 'nil', '-', '--', '–', '—', '?', 'unknown', 'undefined', 'missing', 'nan', '#n/a', '#na']);
+// ─── NULL / BLANK HELPERS ─────────────────────────────────────────────────────
+function isTrueNull(v) { return v === null || v === undefined; }
+function isNullString(v) { return typeof v === 'string' && v.trim().toLowerCase() === 'null'; }
+function isBlank(v) { return typeof v === 'string' && v.trim() === '' && !isNullString(v); }
+function isEffectivelyMissing(v) { return isTrueNull(v) || isNullString(v) || isBlank(v); }
 
-function isTrueNull(v) {
-  return v === null || v === undefined;
-}
-
-function isBlank(v) {
-  if (typeof v !== 'string') return false;
-  const lower = v.trim().toLowerCase();
-  return lower === '' || lower === 'null';
-}
-
-function isEffectivelyNull(v) {
-  return isTrueNull(v) || isBlank(v);
-}
-
-function updateNullCount() {
-  let trueNulls = 0;
-  let blanks = 0;
+function updateCounts() {
+  let nulls = 0, blanks = 0;
   state.workingData.forEach(row => {
     state.headers.forEach(h => {
       const v = row[h];
-      if (isTrueNull(v)) {
-        trueNulls++;
-      } else if (typeof v === 'string' && v.trim().toLowerCase() === 'null') {
-        trueNulls++; // NULL strings count as nulls
-      } else if (typeof v === 'string' && v.trim() === '') {
-        blanks++; // empty strings count as empty
-      }
+      if (isTrueNull(v) || isNullString(v)) nulls++;
+      else if (isBlank(v)) blanks++;
     });
   });
-  document.getElementById('stat-nulls').textContent = trueNulls.toLocaleString();
+  document.getElementById('stat-nulls').textContent = nulls.toLocaleString();
   document.getElementById('stat-blanks').textContent = blanks.toLocaleString();
 }
 
-
-// ─── STATS COMPUTATION ────────────────────────────────────────────────────────
+// ─── STATS ────────────────────────────────────────────────────────────────────
 function computeStats() {
   const stats = {};
   state.headers.forEach(h => {
     const vals = state.workingData.map(r => r[h]);
-    const nullCount = vals.filter(v => isTrueNull(v)).length;
+    const nullCount  = vals.filter(v => isTrueNull(v) || isNullString(v)).length;
     const blankCount = vals.filter(v => isBlank(v)).length;
-    const placeholderCount = vals.filter(v => !isTrueNull(v) && !isBlank(v) && typeof v === 'string' && NULL_PLACEHOLDERS.has(v.trim().toLowerCase())).length;
-    const nonNull = vals.filter(v => !isTrueNull(v) && !isBlank(v));
-    const numeric = nonNull.map(v => parseFloat(v)).filter(v => !isNaN(v));
-    const unique = [...new Set(nonNull)];
+    const nonMissing = vals.filter(v => !isEffectivelyMissing(v));
+    const numeric    = nonMissing.map(v => parseFloat(v)).filter(v => !isNaN(v));
+    const unique     = [...new Set(nonMissing)];
+
+    // Whitespace: collect up to 3 example values that have whitespace
+    const whitespaceExamples = nonMissing
+      .filter(v => typeof v === 'string' && v !== v.trim())
+      .slice(0, 3);
+
+    // Frequency map for all unique values (capped at 25)
     const freq = {};
-    nonNull.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
-    const topVals = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0,5).map(([v,c]) => `${v}(${c})`);
+    nonMissing.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
+    const uniqueWithCounts = Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 25)
+      .map(([v, c]) => `${v} (${c})`);
+
+    // Date detection and mixed format check
+    const dateSamples = nonMissing.filter(v =>
+      typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v.trim())
+    ).slice(0, 5);
+    const altDateSamples = nonMissing.filter(v =>
+      typeof v === 'string' && /^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(v.trim())
+    );
+    const looksLikeDate = nonMissing.length > 0 &&
+      dateSamples.length > nonMissing.slice(0, 20).length * 0.5;
+    const hasMixedDateFormats = dateSamples.length > 0 && altDateSamples.length > 0;
+
+    // Category consistency
+    const isLikelyCategorical = !numeric.length && unique.length > 1 && unique.length <= 30 && nonMissing.length > 10;
+    const hasCaseInconsistency = isLikelyCategorical &&
+      unique.length !== new Set(unique.map(v => v.toLowerCase().trim())).size;
+    const hasWhitespace = nonMissing.some(v => typeof v === 'string' && v !== v.trim());
+
+    // Valid sample — actual non-missing values showing what good data looks like
+    const validSample = nonMissing.filter(v => !isNullString(v)).slice(0, 5);
 
     stats[h] = {
-      nullCount,
-      blankCount,
-      placeholderCount,
+      nullCount, blankCount,
       uniqueCount: unique.length,
       totalCount: vals.length,
-      sample: nonNull.slice(0, 5),
-      topValues: topVals,
-      isNumeric: numeric.length > nonNull.length * 0.7,
+      missingCount: nullCount + blankCount,
+      pct: n => ((n / vals.length) * 100).toFixed(1),
+      isNumeric: numeric.length > nonMissing.length * 0.7,
       min: numeric.length ? Math.min(...numeric) : null,
       max: numeric.length ? Math.max(...numeric) : null,
-      mean: numeric.length ? (numeric.reduce((a,b) => a+b,0) / numeric.length) : null,
+      mean: numeric.length ? +(numeric.reduce((a, b) => a + b, 0) / numeric.length).toFixed(2) : null,
+      hasWhitespace,
+      whitespaceExamples,
+      looksLikeDate,
+      hasMixedDateFormats,
+      dateSamples,
+      hasCaseInconsistency,
+      isLikelyCategorical,
+      validSample,
+      uniqueWithCounts,
+      uniqueSample: unique.slice(0, 10),
     };
   });
-  return stats;
-}
 
-// ─── GEMINI API ───────────────────────────────────────────────────────────────
-async function callGemini(messages) {
-  if (DEMO_MODE) {
-    return await demoResponse(messages);
-  }
-
-  const retryDelays = [15, 30, 60]; // seconds to wait between retries
-  let attempt = 0;
-
-  while (true) {
-    const resp = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages })
-    });
-
-    if (!resp.ok) throw new Error('Worker HTTP error: ' + resp.status);
-
-    const data = await resp.json();
-
-    // Check for 503 specifically — server busy, retry with countdown
-    if (data.error && data.status === 503) {
-      if (attempt >= retryDelays.length) {
-        throw new Error('Servers remain busy after multiple retries. Please try again shortly.');
-      }
-      const waitSecs = retryDelays[attempt];
-      attempt++;
-      await countdownRetry(waitSecs);
-      continue;
-    }
-
-    if (data.error) {
-      throw new Error('Gemini: ' + (data.detail || data.error));
-    }
-
-    return data.text;
-  }
-}
-
-function countdownRetry(seconds) {
-  return new Promise(resolve => {
-    let remaining = seconds;
-    const subEl = document.getElementById('analysis-sub');
-    const loadingEl = document.getElementById('step-loading-text');
-
-    const update = () => {
-      const msg = `Servers busy — retrying in ${remaining}s...`;
-      if (subEl) subEl.textContent = msg;
-      if (loadingEl) loadingEl.textContent = msg;
-    };
-
-    update();
-    const interval = setInterval(() => {
-      remaining--;
-      if (remaining <= 0) {
-        clearInterval(interval);
-        const ready = 'Retrying now...';
-        if (subEl) subEl.textContent = ready;
-        if (loadingEl) loadingEl.textContent = ready;
-        resolve();
-      } else {
-        update();
-      }
-    }, 1000);
+  // Duplicate detection — also capture one example duplicate row
+  const seen = new Map();
+  let duplicateCount = 0;
+  let duplicateExample = null;
+  state.workingData.forEach(row => {
+    const key = state.headers.map(h => row[h]).join('|||');
+    if (seen.has(key)) {
+      duplicateCount++;
+      if (!duplicateExample) duplicateExample = row;
+    } else seen.set(key, row);
   });
+
+  return { columns: stats, duplicateCount, duplicateExample };
 }
 
-// ─── JSON EXTRACTION ──────────────────────────────────────────────────────────
-function extractJSON(text) {
-  if (!text) throw new Error('Empty response from API');
-  let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  if (cleaned.startsWith('{') || cleaned.startsWith('[')) {
-    return JSON.parse(cleaned);
-  }
-  const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  if (start !== -1 && end !== -1) {
-    return JSON.parse(cleaned.slice(start, end + 1));
-  }
-  throw new Error('NOT_JSON:' + cleaned.slice(0, 200));
-}
+// ─── STEP BUILDER ─────────────────────────────────────────────────────────────
+function buildSteps() {
+  const { columns: c, duplicateCount, duplicateExample } = computeStats();
+  const total = state.workingData.length;
+  const steps = [];
 
-async function extractJSONWithCorrection(text, conversationHistory) {
-  try {
-    return extractJSON(text);
-  } catch (e) {
-    if (!e.message.startsWith('NOT_JSON:')) throw e;
-    // Gemini returned plain text — ask it to reformat as JSON
-    const correctionHistory = [
-      ...conversationHistory,
-      { role: 'assistant', content: text },
-      { role: 'user', content: 'Your response was not valid JSON. Please restate your answer as a JSON object only, starting with { and ending with }. No prose or explanation.' }
-    ];
-    const corrected = await callGemini(correctionHistory);
-    return extractJSON(corrected);
-  }
-}
-const demoSteps = [
-  {
-    title: "Trim whitespace from all text columns",
-    rationale: "Several string columns contain leading/trailing spaces that will cause inconsistent matching and sorting. This should always be the first step.",
-    code_excel: '=TRIM(A2)  // Apply across all text columns via helper columns, then paste-special values',
-    code_sql: 'UPDATE table SET col = TRIM(col) WHERE col != TRIM(col);',
-    code_python: 'df = df.apply(lambda col: col.str.strip() if col.dtype == "object" else col)',
-    operation: { action: 'trim_whitespace', columns: 'all_string' }
-  },
-  {
-    title: "Standardise empty cells to null",
-    rationale: "Some blank cells contain spaces or empty strings rather than true nulls. Normalising these ensures consistent null handling in downstream steps.",
-    code_excel: '=IF(TRIM(A2)="","",A2)  // Identify then clear quasi-empty cells',
-    code_sql: "UPDATE table SET col = NULL WHERE TRIM(col) = '';",
-    code_python: "df.replace(r'^\\s*$', None, regex=True, inplace=True)",
-    operation: { action: 'normalize_nulls', columns: 'all' }
-  },
-  {
-    title: "Remove fully duplicate rows",
-    rationale: "The dataset contains rows that are identical across all columns. These are likely data entry errors or import duplicates and should be removed.",
-    code_excel: 'Data → Remove Duplicates → Select All Columns → OK',
-    code_sql: 'DELETE FROM table WHERE rowid NOT IN (SELECT MIN(rowid) FROM table GROUP BY col1, col2, ...);',
-    code_python: 'df.drop_duplicates(inplace=True)',
-    operation: { action: 'remove_duplicates', columns: 'all' }
-  },
-  {
-    title: "Standardise column headers to snake_case",
-    rationale: "Column headers contain spaces and mixed casing which causes issues in SQL and Python. Renaming to snake_case prevents downstream errors.",
-    code_excel: 'Manually rename headers: "First Name" → "first_name" etc.',
-    code_sql: 'ALTER TABLE table RENAME COLUMN "First Name" TO first_name;',
-    code_python: 'df.columns = df.columns.str.lower().str.replace(" ", "_").str.replace(r"[^a-z0-9_]", "", regex=True)',
-    operation: { action: 'snake_case_headers', columns: 'headers' }
-  },
-];
-
-let demoStepIndex = 0;
-
-async function demoResponse(messages) {
-  await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
-  const last = messages[messages.length - 1].content;
-
-  if (last.includes('DENY')) {
-    const step = demoSteps[Math.max(0, demoStepIndex - 1)];
-    return JSON.stringify({
-      title: step.title + ' (revised)',
-      rationale: 'Understood. Re-evaluated based on your feedback. The approach is the same but the scope has been adjusted to be more conservative.',
-      code: state.format === 'sql' ? step.code_sql : state.format === 'python' ? step.code_python : step.code_excel,
-      operation: step.operation,
-      done: false
-    });
+  // 1. Whitespace — deterministic
+  const whitespaceCols = state.headers.filter(h => c[h].hasWhitespace);
+  if (whitespaceCols.length > 0) {
+    const examples = whitespaceCols.flatMap(h => c[h].whitespaceExamples).slice(0, 3);
+    steps.push({ type: 'whitespace', columns: whitespaceCols, examples, needsClaude: false });
   }
 
-  if (demoStepIndex >= demoSteps.length) {
-    return JSON.stringify({ done: true, summary: `${demoSteps.length} cleaning steps applied successfully. Dataset is ready for use.` });
-  }
-
-  const step = demoSteps[demoStepIndex++];
-  return JSON.stringify({
-    title: step.title,
-    rationale: step.rationale,
-    code: state.format === 'sql' ? step.code_sql : state.format === 'python' ? step.code_python : step.code_excel,
-    operation: step.operation,
-    done: false
-  });
-}
-
-function selectFormatAndAnalyze(format) {
-  state.format = format;
-  document.querySelectorAll('.pill').forEach(p => {
-    p.classList.toggle('active', p.dataset.format === format);
-  });
-  document.getElementById('format-overlay').classList.remove('visible');
-  analyzeDataset();
-}
-
-// ─── ANALYZE ──────────────────────────────────────────────────────────────────
-async function analyzeDataset() {
-  document.getElementById('analysis-overlay').classList.add('visible');
-
-  // Cycle through informative loading messages
-  const loadingMessages = [
-    'Reading column structure...',
-    'Computing null and blank counts...',
-    'Detecting data types...',
-    'Analyzing value distributions...',
-    'Identifying cleaning priorities...',
-    'Generating first recommendation...'
-  ];
-  let msgIdx = 0;
-  document.getElementById('analysis-sub').textContent = loadingMessages[0];
-  const msgInterval = setInterval(() => {
-    msgIdx = (msgIdx + 1) % loadingMessages.length;
-    document.getElementById('analysis-sub').textContent = loadingMessages[msgIdx];
-  }, 1200);
-
-  const stats = computeStats();
-
-  // Slim payload — only what Gemini actually needs, no pretty-print
-  const slimStats = {};
+  // 2. Null strings — needs Claude
   state.headers.forEach(h => {
-    const s = stats[h];
-    slimStats[h] = {
-      null_count: s.nullCount,
-      empty_string_count: s.blankCount,
-      unique: s.uniqueCount,
-      total: s.totalCount,
-      numeric: s.isNumeric,
-      sample: s.sample.slice(0, 3),
-      top: s.topValues.slice(0, 3),
-      ...(s.isNumeric ? { min: s.min, max: s.max, mean: s.mean ? +s.mean.toFixed(2) : null } : {})
-    };
-  });
-
-  const systemMsg = `You are DataStep, a data cleaning assistant. You MUST respond with a single valid JSON object only. No prose, no explanation, no markdown fences. Your entire response must start with { and end with }. Any response that is not pure JSON will be rejected.
-
-The user has chosen ${state.format.toUpperCase()} format. ALL code must be ${state.format.toUpperCase()} only.
-
-TERMINOLOGY: "null_count" = cells with NULL string or true nulls. "empty_string_count" = genuinely empty cells. Call null_count values "nulls", never "blanks".
-
-JSON format for a step:
-{"title":"max 8 words","rationale":"1-2 sentences","steps":["action 1","action 2","action 3"],"code":"exact ${state.format.toUpperCase()} code","operation":{"action":"action_type","columns":"column_name or all"},"done":false}
-
-The "operation" field is REQUIRED. "action" should be a snake_case description like "fill_nulls", "trim_whitespace", "remove_duplicates", "convert_type", "rename_headers" etc. "columns" should be the exact column name or "all".
-
-JSON format when all cleaning is complete:
-{"done":true,"summary":"brief summary"}
-
-Priority order: whitespace → nulls → duplicates → type issues → formatting → structure.
-REMEMBER: Respond with JSON only. Start your response with {`;
-
-  const userMsg = `Dataset: ${state.fileName} | Rows: ${state.workingData.length} | Cols: ${state.headers.length} | Format: ${state.format.toUpperCase()}
-Headers: ${state.headers.join(', ')}
-Stats: ${JSON.stringify(slimStats)}
-Suggest the first cleaning step using ${state.format.toUpperCase()} only.`;
-
-  // Store system context separately — only sent once, not repeated in history
-  state.systemContext = systemMsg;
-  state.conversationHistory = [{ role: 'user', content: userMsg }];
-
-  try {
-    const response = await callGemini(state.conversationHistory, 3, state.systemContext);
-    const parsed = await extractJSONWithCorrection(response, state.conversationHistory);
-    clearInterval(msgInterval);
-    document.getElementById('analysis-overlay').classList.remove('visible');
-    if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
-  } catch (e) {
-    clearInterval(msgInterval);
-    document.getElementById('analysis-overlay').classList.remove('visible');
-    showError(e.message || 'Unknown error — check browser console.');
-  }
-}
-
-// ─── STEP FLOW ────────────────────────────────────────────────────────────────
-function showStep(step) {
-  state.currentStep = step;
-  state.stepIndex++;
-
-  document.getElementById('step-counter').textContent = `step ${state.stepIndex}`;
-  document.getElementById('step-title').textContent = step.title;
-
-  // Render rationale + numbered steps
-  const rationaleEl = document.getElementById('step-rationale');
-  let rationaleHTML = `<p style="margin-bottom:0.5rem;">${escHtml(step.rationale)}</p>`;
-  if (step.steps && step.steps.length) {
-    rationaleHTML += `<ol>`;
-    step.steps.forEach(s => {
-      rationaleHTML += `<li>${escHtml(s)}</li>`;
-    });
-    rationaleHTML += `</ol>`;
-  }
-  rationaleEl.innerHTML = rationaleHTML;
-
-  document.getElementById('step-code').textContent = step.code;
-  document.getElementById('step-code').style.display = 'block';
-  document.getElementById('step-actions').style.display = 'flex';
-  document.getElementById('step-content').style.display = 'block';
-  document.getElementById('step-loading').style.display = 'none';
-  document.getElementById('step-done').style.display = 'none';
-
-  document.getElementById('btn-approve').disabled = false;
-  document.getElementById('btn-deny').disabled = false;
-
-  document.getElementById('deny-box').classList.remove('visible');
-  document.getElementById('deny-feedback').value = '';
-
-  // Default operation if Gemini omits it
-  if (!step.operation) {
-    step.operation = { action: 'generic', columns: 'all' };
-  }
-
-  showPreview(step.operation);
-}
-
-function showPreview(operation) {
-  if (!operation) return;
-  state.changedCells = {};
-  const preview = state.workingData.map(r => ({ ...r }));
-
-  applyOperation(preview, operation, state.changedCells, state.workingData);
-
-  document.getElementById('table-mode-label').textContent = 'Preview after step';
-  document.getElementById('diff-legend').style.display = 'flex';
-
-  renderTableData(preview, true);
-}
-
-function applyOperation(data, operation, changedCells, original) {
-  const act = operation.action;
-
-  if (act === 'trim_whitespace') {
-    data.forEach((row, ri) => {
-      state.headers.forEach(h => {
-        if (typeof row[h] === 'string') {
-          const trimmed = row[h].trim();
-          if (trimmed !== row[h]) {
-            if (!changedCells[ri]) changedCells[ri] = {};
-            changedCells[ri][h] = { was: row[h], now: trimmed };
-            row[h] = trimmed;
-          }
-        }
-      });
-    });
-  } else if (act === 'normalize_nulls') {
-    data.forEach((row, ri) => {
-      state.headers.forEach(h => {
-        if (typeof row[h] === 'string' && row[h].trim() === '') {
-          if (!changedCells[ri]) changedCells[ri] = {};
-          changedCells[ri][h] = { was: row[h], now: '' };
-          row[h] = '';
-        }
-      });
-    });
-  } else if (act === 'remove_duplicates') {
-    const seen = new Set();
-    const toRemove = new Set();
-    data.forEach((row, ri) => {
-      const key = state.headers.map(h => row[h]).join('|||');
-      if (seen.has(key)) { toRemove.add(ri); }
-      else { seen.add(key); }
-    });
-    if (toRemove.size > 0) {
-      toRemove.forEach(ri => {
-        if (!changedCells[ri]) changedCells[ri] = {};
-        state.headers.forEach(h => { changedCells[ri][h] = { was: data[ri][h], now: '[DUPLICATE — will remove]' }; });
+    if (c[h].nullCount > 0) {
+      steps.push({
+        type: 'nulls', needsClaude: true,
+        column: h, count: c[h].nullCount, pct: c[h].pct(c[h].nullCount),
+        looksLikeDate: c[h].looksLikeDate, isNumeric: c[h].isNumeric,
+        validSample: c[h].validSample, min: c[h].min, max: c[h].max, mean: c[h].mean,
       });
     }
-  } else if (act === 'snake_case_headers') {
-    const newHeaders = state.headers.map(h =>
-      h.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-    );
-    data.forEach((row, ri) => {
-      const changed = {};
-      state.headers.forEach((h, i) => {
-        if (h !== newHeaders[i]) {
-          changed[h] = { was: h, now: newHeaders[i] };
-        }
+  });
+
+  // 3. Empty strings — needs Claude
+  state.headers.forEach(h => {
+    if (c[h].blankCount > 0) {
+      steps.push({
+        type: 'blanks', needsClaude: true,
+        column: h, count: c[h].blankCount, pct: c[h].pct(c[h].blankCount),
+        validSample: c[h].validSample,
       });
-      if (Object.keys(changed).length > 0) {
-        changedCells[ri] = changed;
-      }
-    });
-  } else {
-    // Generic fallback — only highlight cells that are clearly being targeted
-    // i.e. null/empty values in the affected column
-    const targetCols = operation.columns === 'all' || operation.columns === 'all_string'
-      ? state.headers
-      : state.headers.filter(h => h === operation.columns || h.toLowerCase() === (operation.columns || '').toLowerCase());
-    if (targetCols.length > 0) {
-      data.forEach((row, ri) => {
-        targetCols.forEach(h => {
-          const val = row[h];
-          // Only flag cells that are null/empty — these are the ones being changed
-          if (isTrueNull(val) || isBlank(val)) {
-            if (!changedCells[ri]) changedCells[ri] = {};
-            changedCells[ri][h] = { was: val, now: '(will change)' };
-          }
+    }
+  });
+
+  // 4. Duplicates — deterministic
+  if (duplicateCount > 0) {
+    const pct = ((duplicateCount / total) * 100).toFixed(1);
+    steps.push({ type: 'duplicates', needsClaude: false, count: duplicateCount, pct, duplicateExample });
+  }
+
+  // 5. Date columns — deterministic if clean, needs Claude if mixed formats
+  state.headers.forEach(h => {
+    if (c[h].looksLikeDate && !c[h].isNumeric && c[h].nullCount < c[h].totalCount * 0.9) {
+      steps.push({
+        type: 'date_type',
+        needsClaude: c[h].hasMixedDateFormats,
+        column: h, dateSamples: c[h].dateSamples, hasMixedDateFormats: c[h].hasMixedDateFormats,
+      });
+    }
+  });
+
+  // 6. Inconsistent categories — needs Claude
+  state.headers.forEach(h => {
+    if (c[h].hasCaseInconsistency) {
+      steps.push({
+        type: 'inconsistent_categories', needsClaude: true,
+        column: h, uniqueSample: c[h].uniqueSample,
+        uniqueWithCounts: c[h].uniqueWithCounts, uniqueCount: c[h].uniqueCount,
+      });
+    }
+  });
+
+  state.steps = steps;
+  document.getElementById('stat-steps').textContent = steps.length;
+}
+
+// ─── FIX GENERATOR (deterministic steps) ─────────────────────────────────────
+function generateFix(step) {
+  const f = state.format;
+  const tbl = state.fileName.replace('.csv', '').replace(/\s+/g, '_');
+
+  switch (step.type) {
+
+    case 'whitespace': {
+      const cols = step.columns;
+      if (f === 'excel') {
+        const lines = cols.map((col, i) => {
+          const col_letter = String.fromCharCode(65 + state.headers.indexOf(col));
+          return `Column "${col}":\n  =TRIM(${col_letter}2)  → paste into helper column, then copy → paste special (Values only) back over original`;
         });
-      });
+        return lines.join('\n\n') + '\n\nRepeat for each column, then delete helper columns.';
+      }
+      if (f === 'sql') {
+        return cols.map(col =>
+          `UPDATE ${tbl}\nSET "${col}" = TRIM("${col}")\nWHERE "${col}" != TRIM("${col}");`
+        ).join('\n\n');
+      }
+      const colList = cols.map(c => `'${c}'`).join(', ');
+      return `cols = [${colList}]\ndf[cols] = df[cols].apply(lambda x: x.str.strip())\nprint("Whitespace trimmed from:", cols)`;
+    }
+
+    case 'duplicates': {
+      const colList = state.headers.map(h => `"${h}"`).join(', ');
+      if (f === 'excel') {
+        return `1. Select your entire data range including headers\n2. Go to Data → Remove Duplicates\n3. Ensure all columns are checked: ${state.headers.join(', ')}\n4. Click OK\n5. Excel will confirm how many duplicates were removed\n\nExpected: ${step.count.toLocaleString()} rows removed (${step.pct}% of dataset)`;
+      }
+      if (f === 'sql') {
+        const groupBy = state.headers.map(h => `"${h}"`).join(', ');
+        return `-- Preview duplicates first:\nSELECT ${groupBy}, COUNT(*) as count\nFROM ${tbl}\nGROUP BY ${groupBy}\nHAVING COUNT(*) > 1;\n\n-- Remove duplicates (keep first occurrence):\nDELETE FROM ${tbl}\nWHERE rowid NOT IN (\n  SELECT MIN(rowid)\n  FROM ${tbl}\n  GROUP BY ${groupBy}\n);\n-- Expected: ${step.count.toLocaleString()} rows deleted`;
+      }
+      return `before = len(df)\ndf.drop_duplicates(keep='first', inplace=True)\nafter = len(df)\nprint(f"Removed {before - after} duplicate rows")\nprint(f"Expected: ${step.count.toLocaleString()} rows removed")\nassert before - after == ${step.count}, "Count mismatch — check your data"`;
+    }
+
+    case 'date_type': {
+      const col = step.column;
+      const sample = step.dateSamples[0] || '2023-01-15';
+      if (f === 'excel') {
+        return `1. Select the "${col}" column\n2. Go to Data → Text to Columns\n3. Click Finish (no changes needed — this forces Excel to re-read the values)\n4. If dates still show as text: select column → Format Cells → Date → choose your preferred format\n5. Verify a few cells show as dates and sort correctly\n\nSample value in your data: "${sample}"`;
+      }
+      if (f === 'sql') {
+        return `-- Check current type:\nSELECT pg_typeof("${col}") FROM ${tbl} LIMIT 1;\n\n-- Convert to DATE:\nALTER TABLE ${tbl}\nALTER COLUMN "${col}" TYPE DATE\nUSING "${col}"::DATE;\n\n-- Verify:\nSELECT MIN("${col}"), MAX("${col}") FROM ${tbl};`;
+      }
+      return `print("Before:", df['${col}'].dtype)\n\ndf['${col}'] = pd.to_datetime(df['${col}'], format='%Y-%m-%d', errors='coerce')\n\nfailed = df[df['${col}'].isna()]\nif len(failed) > 0:\n    print(f"Warning: {len(failed)} values failed to parse")\n    print(failed[['${col}']].head())\nelse:\n    print("All values converted successfully")\n\nprint("After:", df['${col}'].dtype)`;
     }
   }
+
+  return '';
 }
 
-async function approveStep() {
-  if (!state.currentStep) return;
+// ─── PROMPT GENERATOR (Claude-assisted steps) ─────────────────────────────────
+function generatePrompt(step) {
+  const f = state.format;
+  const file = state.fileName;
+  const totalRows = state.workingData.length.toLocaleString();
 
-  // Actually apply operation to working data
-  const changed = {};
-  applyOperation(state.workingData, state.currentStep.operation, changed, null);
+  switch (step.type) {
 
-  if (state.currentStep.operation.action === 'remove_duplicates') {
+    case 'whitespace': {
+      const cols = step.columns.join(', ');
+      const exampleLine = step.examples.length
+        ? `\nExample values with whitespace found: ${step.examples.map(e => `"${e}"`).join(', ')}`
+        : '';
+      if (f === 'excel') return `I have a dataset called "${file}" with ${totalRows} rows. The following columns contain cells with leading or trailing spaces: ${cols}.${exampleLine}\n\nPlease walk me through how to trim the whitespace from these columns in Excel step by step. Show me how to verify the fix worked and confirm the values look correct after trimming.`;
+      if (f === 'sql')  return `I have a table from "${file}" with ${totalRows} rows. The following columns contain leading or trailing whitespace: ${cols}.${exampleLine}\n\nWrite a SELECT query first to show affected rows, then write SQL UPDATE statements to trim each column. Confirm the approach handles both leading and trailing spaces.`;
+      return `I have a pandas dataframe loaded from "${file}" with ${totalRows} rows. The following columns contain leading or trailing whitespace: ${cols}.${exampleLine}\n\nWrite pandas code to strip whitespace from all these columns. Print a before/after sample to confirm values were trimmed correctly.`;
+    }
+
+    case 'nulls': {
+      const { column, count, pct, looksLikeDate, isNumeric, validSample, min, max, mean } = step;
+      const colType = looksLikeDate ? 'date' : isNumeric ? 'numeric' : 'text';
+      const sampleLine = validSample.length ? `\nSample of valid (non-null) values in this column: ${validSample.map(v => `"${v}"`).join(', ')}` : '';
+      const numericLine = isNumeric && mean !== null ? `\nNumeric range: min=${min}, max=${max}, mean=${mean}` : '';
+      const highPctNote = parseFloat(pct) > 50 ? `\nNote: Over half the rows are NULL (${pct}%). Consider whether this column is worth keeping at all.` : '';
+
+      if (f === 'excel') return `In my dataset "${file}", the column "${column}" contains ${count.toLocaleString()} cells with the string value "NULL" — that is ${pct}% of all rows. This is a ${colType} column.${sampleLine}${numericLine}${highPctNote}\n\nPlease walk me through how to handle these NULL values in Excel. Given the column type and the percentage affected, should I delete these rows, replace NULL with a specific value, or flag them? Give step-by-step instructions and explain your recommendation.`;
+      if (f === 'sql')  return `In my table from "${file}", the column "${column}" has ${count.toLocaleString()} rows (${pct}%) containing the literal string 'NULL'. This is a ${colType} column.${sampleLine}${numericLine}${highPctNote}\n\nFirst write a SELECT query to confirm the count. Then recommend and write a SQL query to handle them — convert to proper NULL, replace with a default, or delete rows. Explain which approach suits a ${colType} column and why.`;
+      return `In my dataframe from "${file}", the column "${column}" has ${count.toLocaleString()} rows (${pct}%) containing the string 'NULL'. This is a ${colType} column.${sampleLine}${numericLine}${highPctNote}\n\nWrite pandas code to handle these. First print a count to confirm. Then recommend and implement the best strategy — replace with NaN, fill with a computed value, or drop rows. Print the count before and after to verify.`;
+    }
+
+    case 'blanks': {
+      const { column, count, pct, validSample } = step;
+      const sampleLine = validSample.length ? `\nSample of valid values in this column: ${validSample.map(v => `"${v}"`).join(', ')}` : '';
+      const highPctNote = parseFloat(pct) > 50 ? `\nNote: Over half the rows are empty (${pct}%). Consider whether this column should be dropped entirely.` : '';
+
+      if (f === 'excel') return `In my dataset "${file}", the column "${column}" has ${count.toLocaleString()} completely empty cells — ${pct}% of all rows.${sampleLine}${highPctNote}\n\nWalk me through how to handle these in Excel. Should I delete those rows, fill the cells with a placeholder value, or flag them? Give step-by-step instructions based on your recommendation.`;
+      if (f === 'sql')  return `In my table from "${file}", the column "${column}" has ${count.toLocaleString()} empty string values — ${pct}% of rows.${sampleLine}${highPctNote}\n\nWrite SQL to handle these — convert to NULL, fill with a default, or delete those rows. Recommend an approach for an empty ${column} field and explain why.`;
+      return `In my dataframe from "${file}", the column "${column}" has ${count.toLocaleString()} empty string values — ${pct}% of rows.${sampleLine}${highPctNote}\n\nWrite pandas code to handle these empty strings. Recommend and implement the best approach — replace with NaN, fill, or drop. Print counts before and after to confirm.`;
+    }
+
+    case 'duplicates': {
+      const { count, pct, duplicateExample } = step;
+      const exampleLine = duplicateExample
+        ? `\nExample of a duplicate row: ${state.headers.slice(0, 4).map(h => `${h}="${duplicateExample[h]}"`).join(', ')}${state.headers.length > 4 ? '...' : ''}`
+        : '';
+
+      if (f === 'excel') return `My dataset "${file}" contains ${count.toLocaleString()} duplicate rows — ${pct}% of total rows. These are rows that are completely identical across all columns.${exampleLine}\n\nWalk me through how to find and remove these duplicates in Excel step by step. Show me how to preview them before deleting, and how to verify the correct number were removed.`;
+      if (f === 'sql')  return `My table from "${file}" contains ${count.toLocaleString()} fully duplicate rows — ${pct}% of total.${exampleLine}\n\nWrite a SQL query to identify and preview the duplicates first. Then write a query to remove them keeping one copy of each. Explain which occurrence is kept and why.`;
+      return `My dataframe from "${file}" contains ${count.toLocaleString()} fully duplicate rows — ${pct}% of total.${exampleLine}\n\nWrite pandas code to first show a sample of the duplicates, then remove them keeping the first occurrence. Print the row count before and after to confirm exactly ${count.toLocaleString()} rows were removed.`;
+    }
+
+    case 'date_type': {
+      const { column, dateSamples, hasMixedDateFormats } = step;
+      const sampleLine = dateSamples.length ? `\nSample date strings found in this column: ${dateSamples.map(v => `"${v}"`).join(', ')}` : '';
+      const mixedNote = hasMixedDateFormats ? `\nWarning: Mixed date formats detected in this column. Some values appear to use MM/DD/YYYY format alongside YYYY-MM-DD. This must be resolved before conversion or some dates will be corrupted.` : '';
+
+      if (f === 'excel') return `In my dataset "${file}", the column "${column}" contains dates stored as text strings rather than Excel date values.${sampleLine}${mixedNote}\n\nWalk me through how to convert this column to proper Excel date format. Show me how to check for any values that don't convert correctly before applying the change to all rows.`;
+      if (f === 'sql')  return `In my table from "${file}", the column "${column}" is stored as text but contains date strings.${sampleLine}${mixedNote}\n\nWrite a SELECT query to identify any values that won't parse as dates. Then write SQL to cast this column to a DATE type. Explain how to handle any conversion failures.`;
+      return `In my dataframe from "${file}", the column "${column}" contains date strings but is stored as object type.${sampleLine}${mixedNote}\n\nWrite pandas code using pd.to_datetime() with errors='coerce'. Print any rows where conversion failed (NaT values) so I can review them before committing. Then show the dtype before and after to confirm the conversion.`;
+    }
+
+    case 'inconsistent_categories': {
+      const { column, uniqueWithCounts, uniqueCount } = step;
+      const truncated = uniqueCount > 25;
+      const listLine = `\nAll unique values with counts (${truncated ? 'top 25 of ' + uniqueCount : uniqueCount + ' total'}):\n${uniqueWithCounts.join('\n')}`;
+
+      if (f === 'excel') return `In my dataset "${file}", the column "${column}" has inconsistent category values — the same category appears to be written in multiple ways.${listLine}\n\nFirst, review the list above and identify which values should be merged. Then walk me through how to standardize them in Excel using find/replace or a formula. Do not decide what the canonical form should be — I will tell you after reviewing.`;
+      if (f === 'sql')  return `In my table from "${file}", the column "${column}" has inconsistent category values.${listLine}\n\nBased on the values above, identify likely duplicates. Then write SQL UPDATE statements to standardize them. Present your proposed mappings (e.g. "in store" → "in-store") and wait for me to confirm before writing the final queries.`;
+      return `In my dataframe from "${file}", the column "${column}" has inconsistent category values.${listLine}\n\nBased on the values above, identify which values appear to be variants of the same category. Propose a mapping dictionary but do not apply it yet — show me the proposed changes first so I can confirm them before you write the replacement code.`;
+    }
+
+    default:
+      return `Review the dataset "${file}" for any remaining data quality issues in the columns: ${state.headers.join(', ')}.`;
+  }
+}
+
+// ─── STEP DISPLAY ─────────────────────────────────────────────────────────────
+const STEP_TITLES = {
+  whitespace:              'Trim whitespace from text columns',
+  nulls:                   col => `Handle NULL values in "${col}"`,
+  blanks:                  col => `Handle empty cells in "${col}"`,
+  duplicates:              'Remove duplicate rows',
+  date_type:               col => `Convert "${col}" to date format`,
+  inconsistent_categories: col => `Standardize categories in "${col}"`,
+};
+
+const STEP_WHAT = {
+  whitespace:              'Issue detected: whitespace',
+  nulls:                   'Issue detected: null values',
+  blanks:                  'Issue detected: empty cells',
+  duplicates:              'Issue detected: duplicate rows',
+  date_type:               'Issue detected: text-stored dates',
+  inconsistent_categories: 'Issue detected: inconsistent categories',
+};
+
+const STEP_RATIONALE = {
+  whitespace: (cols) => ({
+    text: `${cols.length} column${cols.length > 1 ? 's' : ''} contain cells with leading or trailing spaces. These cause invisible mismatches when filtering, joining, or searching your data.`,
+    steps: ['Identify the affected columns', 'Trim all leading and trailing spaces', 'Verify no values changed unintentionally']
+  }),
+  nulls: (col, count) => ({
+    text: `The "${col}" column contains ${count.toLocaleString()} cells with the literal string "NULL" representing missing data. These need to be handled before any analysis.`,
+    steps: ['Decide: delete rows, fill with a value, or flag as missing', 'Apply your chosen treatment to all NULL cells', 'Confirm the count drops to zero']
+  }),
+  blanks: (col, count) => ({
+    text: `The "${col}" column has ${count.toLocaleString()} completely empty cells. Empty values can cause errors in formulas, aggregations, and exports.`,
+    steps: ['Review a sample of the empty rows to understand why they are blank', 'Decide: delete, fill with a placeholder, or flag', 'Apply consistently across the column']
+  }),
+  duplicates: (count) => ({
+    text: `The dataset contains ${count.toLocaleString()} rows that are identical across all columns. These are likely data entry errors or import duplicates.`,
+    steps: ['Preview the duplicate rows before deleting', 'Remove duplicates keeping one copy of each', 'Verify the row count reduced by the expected amount']
+  }),
+  date_type: (col) => ({
+    text: `The "${col}" column contains dates stored as text strings rather than a proper date type. This prevents sorting, filtering by date range, and date calculations.`,
+    steps: ['Check for any non-standard date formats in the column', 'Convert the column to proper date type', 'Verify dates sort correctly after conversion']
+  }),
+  inconsistent_categories: (col) => ({
+    text: `The "${col}" column has category values that appear to represent the same thing written differently — varying capitalisation or spacing. These will be counted separately in any analysis.`,
+    steps: ['Print all unique values to review inconsistencies', 'Define the standard form for each category', 'Apply replacements to standardize all values']
+  }),
+};
+
+const STEP_SUMMARIES = {
+  whitespace: (step) => [
+    `${step.columns.length} column${step.columns.length > 1 ? 's' : ''} affected: ${step.columns.join(', ')}`,
+    'Cells contain leading or trailing spaces invisible to the eye',
+    'These cause mismatches in filters, joins, and lookups',
+  ],
+  nulls: (step) => [
+    `Column: "${step.column}" — ${step.count.toLocaleString()} cells contain the string "NULL"`,
+    `Column type detected: ${step.looksLikeDate ? 'date' : step.isNumeric ? 'numeric' : 'text'}`,
+    'NULL strings are not true missing values — they must be handled explicitly',
+  ],
+  blanks: (step) => [
+    `Column: "${step.column}" — ${step.count.toLocaleString()} cells are completely empty`,
+    'Empty cells can cause errors in formulas, aggregations, and exports',
+    'Decide whether to fill, flag, or remove before applying any fix',
+  ],
+  duplicates: (step) => [
+    `${step.count.toLocaleString()} rows are identical across all columns`,
+    'Likely caused by data entry errors or duplicate imports',
+    'Removing them will reduce your total row count by exactly this number',
+  ],
+  date_type: (step) => [
+    `Column: "${step.column}" — dates are stored as text strings, not a date type`,
+    'Prevents date sorting, range filtering, and date arithmetic',
+    'Mixed formats in the same column will silently break conversion',
+  ],
+  inconsistent_categories: (step) => [
+    `Column: "${step.column}" — same category written multiple ways`,
+    `Sample values found: ${step.uniqueSample.slice(0, 4).join(', ')}`,
+    'Will be counted separately in any GROUP BY or pivot analysis',
+  ],
+};
+
+const STEP_WATCHOUTS = {
+  whitespace: [
+    'Trimming can alter values that intentionally contain spaces — e.g. formatted codes like "AB 123". Spot-check these before bulk applying.',
+    'Row count should stay identical after trimming — if it changes, something went wrong.',
+    'Verify a sample of cells manually before and after to confirm values look correct.',
+  ],
+  nulls: [
+    'Dropping rows with NULLs reduces your row count — check whether this affects any totals, ratios, or aggregations downstream.',
+    'NULLs in different columns may need different treatments. A NULL in "notes" is harmless; a NULL in "customer_id" is critical. Don\'t apply a blanket fix without thinking per-column.',
+    'If filling with a value, make sure the fill value won\'t be mistaken for real data in any analysis.',
+  ],
+  blanks: [
+    'Empty strings and NULL strings are different things — confirm Claude is addressing the right one for this column.',
+    'Check whether blanks are truly missing or intentionally left empty (e.g. an optional field not all users fill in).',
+    'Filling blanks with "Unknown" or a placeholder will affect GROUP BY counts and category distributions in any analysis.',
+  ],
+  duplicates: [
+    'Confirm the duplicates are actual errors — some datasets legitimately repeat rows (e.g. two identical transactions on the same day). Review a sample before deleting.',
+    'Clarify which copy is being kept — first occurrence, last occurrence, or arbitrary. This matters if any column has a timestamp.',
+    'After removal, verify your row count dropped by exactly the expected number.',
+  ],
+  date_type: [
+    'Check for mixed date formats in the column before converting — some rows may be MM/DD/YYYY while others are YYYY-MM-DD. A single conversion will silently corrupt mixed formats.',
+    'Any value that fails to parse will become NULL or throw an error. Always run a dry-check first and review the failures before committing.',
+    'If times are included, confirm how timezone handling should work — UTC vs local can shift dates by a full day.',
+  ],
+  inconsistent_categories: [
+    'Never let Claude decide what the canonical form of a category should be — that is a data decision only you can make. Print all unique values first, decide yourself, then instruct Claude to implement.',
+    'Case standardization ("In-Store" → "in-store") is safe. Merging semantically distinct values ("takeaway" and "delivery") is not — verify meaning before merging.',
+    'After standardizing, print the new unique value counts to confirm no unexpected values remain.',
+  ],
+};
+
+function showStep(index) {
+  if (index >= state.steps.length) {
+    showDone();
+    return;
+  }
+
+  state.stepIndex = index;
+  const step = state.steps[index];
+  const total = state.steps.length;
+
+  document.getElementById('step-counter').textContent = `${index + 1} of ${total}`;
+
+  const titleFn = STEP_TITLES[step.type];
+  const title = typeof titleFn === 'function'
+    ? titleFn(step.column || (step.columns && step.columns.join(', ')) || '')
+    : titleFn;
+
+  document.getElementById('step-what').textContent = STEP_WHAT[step.type] || '';
+  document.getElementById('step-title').textContent = title;
+
+  const rat = STEP_RATIONALE[step.type];
+  let ratObj;
+  if (step.type === 'whitespace')              ratObj = rat(step.columns);
+  else if (step.type === 'nulls')              ratObj = rat(step.column, step.count);
+  else if (step.type === 'blanks')             ratObj = rat(step.column, step.count);
+  else if (step.type === 'duplicates')         ratObj = rat(step.count);
+  else if (step.type === 'date_type')          ratObj = rat(step.column);
+  else if (step.type === 'inconsistent_categories') ratObj = rat(step.column);
+  else ratObj = { text: '', steps: [] };
+
+  const rationaleEl = document.getElementById('step-rationale');
+  let html = `<p style="margin-bottom:0.5rem;">${escHtml(ratObj.text)}</p>`;
+  if (ratObj.steps.length) {
+    html += `<ol>`;
+    ratObj.steps.forEach(s => { html += `<li>${escHtml(s)}</li>`; });
+    html += `</ol>`;
+  }
+  rationaleEl.innerHTML = html;
+
+  // Render correct action path
+  if (step.needsClaude) {
+    document.getElementById('fix-path').style.display = 'none';
+    document.getElementById('claude-path').style.display = 'block';
+    const prompt = generatePrompt(step);
+    document.getElementById('prompt-box').textContent = prompt;
+    document.getElementById('prompt-box').style.display = 'none';
+    document.getElementById('btn-view-prompt').textContent = '▾ View full prompt';
+    const copyBtn = document.getElementById('btn-copy');
+    copyBtn.textContent = '⎘ Copy prompt for Claude';
+    copyBtn.classList.remove('copied');
+  } else {
+    document.getElementById('claude-path').style.display = 'none';
+    document.getElementById('fix-path').style.display = 'block';
+    const fix = generateFix(step);
+    document.getElementById('fix-box').textContent = fix;
+    const copyFixBtn = document.getElementById('btn-copy-fix');
+    copyFixBtn.textContent = '⎘ Copy fix';
+    copyFixBtn.classList.remove('copied');
+  }
+
+  // Render issue summary
+  const summaryFn = STEP_SUMMARIES[step.type];
+  const summaryEl = document.getElementById('issue-summary');
+  const summaryList = document.getElementById('issue-summary-list');
+  if (summaryFn) {
+    const bullets = summaryFn(step);
+    summaryList.innerHTML = bullets.map(b => `<li>${escHtml(b)}</li>`).join('');
+    summaryEl.classList.add('visible');
+  } else {
+    summaryEl.classList.remove('visible');
+  }
+
+  // Render watchout warnings
+  const watchouts = STEP_WATCHOUTS[step.type] || [];
+  const watchoutBox = document.getElementById('watchout-box');
+  const watchoutList = document.getElementById('watchout-list');
+  if (watchouts.length) {
+    watchoutList.innerHTML = watchouts.map(w => `<li>${escHtml(w)}</li>`).join('');
+    watchoutBox.classList.add('visible');
+  } else {
+    watchoutBox.classList.remove('visible');
+  }
+
+  document.getElementById('step-actions').style.display = 'flex';
+
+  // Arrow navigation state
+  const prevBtn = document.getElementById('btn-prev');
+  const nextBtn = document.getElementById('btn-next');
+  prevBtn.disabled = index === 0;
+  nextBtn.disabled = index === state.steps.length - 1;
+  document.getElementById('step-nav-label').textContent = `${index + 1} / ${state.steps.length}`;
+
+  // Reset copy button
+  const copyBtn = document.getElementById('btn-copy');
+  copyBtn.textContent = '⎘ Copy prompt for Claude';
+  copyBtn.classList.remove('copied');
+
+  // Highlight affected cells in table
+  highlightStep(step);
+}
+
+function highlightStep(step) {
+  state.changedCells = {};
+  const targetCols = step.type === 'whitespace' ? step.columns
+    : step.column ? [step.column]
+    : null;
+
+  if (targetCols) {
+    state.workingData.forEach((row, ri) => {
+      targetCols.forEach(h => {
+        const v = row[h];
+        if (step.type === 'whitespace' && typeof v === 'string' && v !== v.trim()) {
+          if (!state.changedCells[ri]) state.changedCells[ri] = {};
+          state.changedCells[ri][h] = true;
+        } else if ((step.type === 'nulls') && (isTrueNull(v) || isNullString(v))) {
+          if (!state.changedCells[ri]) state.changedCells[ri] = {};
+          state.changedCells[ri][h] = true;
+        } else if (step.type === 'blanks' && isBlank(v)) {
+          if (!state.changedCells[ri]) state.changedCells[ri] = {};
+          state.changedCells[ri][h] = true;
+        } else if (step.type === 'date_type' && typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v.trim())) {
+          if (!state.changedCells[ri]) state.changedCells[ri] = {};
+          state.changedCells[ri][h] = true;
+        } else if (step.type === 'inconsistent_categories') {
+          if (!state.changedCells[ri]) state.changedCells[ri] = {};
+          state.changedCells[ri][h] = true;
+        }
+      });
+    });
+  } else if (step.type === 'duplicates') {
     const seen = new Set();
-    state.workingData = state.workingData.filter(row => {
+    state.workingData.forEach((row, ri) => {
       const key = state.headers.map(h => row[h]).join('|||');
-      if (seen.has(key)) return false;
-      seen.add(key); return true;
+      if (seen.has(key)) {
+        state.changedCells[ri] = {};
+        state.headers.forEach(h => { state.changedCells[ri][h] = true; });
+      } else seen.add(key);
     });
   }
 
-  if (state.currentStep.operation.action === 'snake_case_headers') {
-    const newHeaders = state.headers.map(h =>
-      h.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-    );
-    state.workingData = state.workingData.map(row => {
-      const newRow = {};
-      state.headers.forEach((h, i) => { newRow[newHeaders[i]] = row[h]; });
-      return newRow;
-    });
-    state.headers = newHeaders;
-  }
+  document.getElementById('table-mode-label').textContent = 'Affected cells highlighted';
+  document.getElementById('diff-legend').style.display = 'flex';
+  renderTable();
+}
 
-  updateNullCount();
-  document.getElementById('stat-rows').textContent = state.workingData.length.toLocaleString();
-
-  state.history.push({ title: state.currentStep.title, code: state.currentStep.code });
-  // Save snapshot of data state after this step for backtracking
-  state.snapshots.push({
-    workingData: state.workingData.map(r => ({ ...r })),
-    headers: [...state.headers],
-    title: state.currentStep.title
+// ─── STEP ACTIONS ─────────────────────────────────────────────────────────────
+function copyPrompt() {
+  const prompt = document.getElementById('prompt-box').textContent;
+  navigator.clipboard.writeText(prompt).then(() => {
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '⎘ Copy prompt for Claude'; btn.classList.remove('copied'); }, 2000);
   });
+}
+
+function copyFix() {
+  const fix = document.getElementById('fix-box').textContent;
+  navigator.clipboard.writeText(fix).then(() => {
+    const btn = document.getElementById('btn-copy-fix');
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '⎘ Copy fix'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function navigateStep(dir) {
+  const next = state.stepIndex + dir;
+  if (next < 0 || next >= state.steps.length) return;
+  state.changedCells = {};
+  document.getElementById('table-mode-label').textContent = 'Dataset preview';
+  document.getElementById('diff-legend').style.display = 'none';
+  // Track visited
+  if (!state.visited) state.visited = new Set();
+  state.visited.add(state.stepIndex);
+  showStep(next);
   renderHistory();
-
-  state.changedCells = {};
-  document.getElementById('table-mode-label').textContent = 'Current data';
-  document.getElementById('diff-legend').style.display = 'none';
-  renderTable(false);
-
-  state.conversationHistory.push({ role: 'assistant', content: JSON.stringify(state.currentStep) });
-  state.conversationHistory.push({ role: 'user', content: `APPROVED. Format: ${state.format.toUpperCase()}. Please suggest the next cleaning step, or indicate done if the dataset is clean.` });
-
-  // Keep history lean — only last 6 messages (3 exchanges) to avoid token bloat
-  if (state.conversationHistory.length > 6) {
-    state.conversationHistory = state.conversationHistory.slice(-6);
-  }
-
-  document.getElementById('step-content').style.display = 'none';
-  document.getElementById('step-loading').style.display = 'block';
-  document.getElementById('step-loading-text').textContent = `Step ${state.stepIndex} applied — analyzing remaining issues...`;
-  document.getElementById('btn-approve').disabled = true;
-  document.getElementById('btn-deny').disabled = true;
-
-  try {
-    const response = await callGemini(state.conversationHistory, 3, state.systemContext);
-    const parsed = await extractJSONWithCorrection(response, state.conversationHistory);
-    if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
-  } catch (e) { showError(e.message || 'Failed to get next step.'); }
 }
 
-async function denyStep() {
-  const feedback = document.getElementById('deny-feedback').value.trim();
-  if (!feedback) { document.getElementById('deny-feedback').focus(); return; }
-
-  document.getElementById('deny-box').classList.remove('visible');
-  document.getElementById('step-content').style.display = 'none';
-  document.getElementById('step-loading').style.display = 'block';
-  document.getElementById('step-loading-text').textContent = 'Re-evaluating based on your feedback...';
-
-  state.changedCells = {};
-  document.getElementById('table-mode-label').textContent = 'Current data';
-  document.getElementById('diff-legend').style.display = 'none';
-  renderTable(false);
-
-  state.conversationHistory.push({ role: 'assistant', content: JSON.stringify(state.currentStep) });
-  state.conversationHistory.push({ role: 'user', content: `DENY. Feedback: ${feedback}. Please re-evaluate and suggest a revised approach for this step.` });
-
-  try {
-    const response = await callGemini(state.conversationHistory, 3, state.systemContext);
-    const parsed = await extractJSONWithCorrection(response, state.conversationHistory);
-    state.stepIndex--;
-    if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
-  } catch (e) { showError('Failed to re-evaluate step.'); }
+function togglePrompt() {
+  const box = document.getElementById('prompt-box');
+  const btn = document.getElementById('btn-view-prompt');
+  const visible = box.style.display !== 'none';
+  box.style.display = visible ? 'none' : 'block';
+  btn.textContent = visible ? '▾ View full prompt' : '▴ Hide prompt';
 }
 
-function showDone(summary) {
+function showDone() {
   document.getElementById('step-content').style.display = 'none';
-  document.getElementById('step-loading').style.display = 'none';
   document.getElementById('step-done').style.display = 'block';
-  document.getElementById('done-sub').textContent = summary || 'All recommended steps applied.';
   document.getElementById('step-counter').textContent = 'complete';
+  document.getElementById('done-sub').textContent =
+    `${state.history.filter(h => !h.skipped).length} of ${state.steps.length} issues addressed.`;
+  state.changedCells = {};
+  document.getElementById('diff-legend').style.display = 'none';
+  document.getElementById('table-mode-label').textContent = 'Dataset preview';
+  renderTable();
 }
 
-function showError(msg) {
-  document.getElementById('step-title').textContent = 'Error';
-  document.getElementById('step-rationale').textContent = msg;
-  document.getElementById('step-content').style.display = 'block';
-  document.getElementById('step-loading').style.display = 'none';
-  document.getElementById('step-code').style.display = 'none';
-  document.getElementById('step-actions').style.display = 'none';
+// ─── HISTORY ──────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const el = document.getElementById('history-track');
+  if (!state.visited || !state.visited.size) {
+    el.innerHTML = '<div class="history-empty">No steps visited yet.</div>';
+    return;
+  }
+  const visited = [...state.visited].sort((a, b) => a - b);
+  el.innerHTML = visited.map(i => {
+    const step = state.steps[i];
+    const titleFn = STEP_TITLES[step.type];
+    const title = typeof titleFn === 'function'
+      ? titleFn(step.column || (step.columns && step.columns[0]) || '')
+      : titleFn;
+    const isCurrent = i === state.stepIndex;
+    return `<div class="history-item" style="${isCurrent ? 'color:var(--text2);' : ''}">
+      <div class="history-dot" style="${isCurrent ? 'background:var(--accent);' : 'background:var(--text3);'}"></div>
+      <span style="flex:1;">${escHtml(title)}</span>
+      ${isCurrent ? '<span style="font-size:10px;color:var(--accent);font-family:\'DM Mono\',monospace;">current</span>' : ''}
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
 }
 
 // ─── TABLE RENDER ─────────────────────────────────────────────────────────────
-function getFilteredRows(data) {
-  const rows = data || state.workingData;
-  if (!state.searchQuery) return rows;
-  return rows.filter(row =>
+function getFilteredRows() {
+  if (!state.searchQuery) return state.workingData;
+  return state.workingData.filter(row =>
     state.headers.some(h => String(row[h] || '').toLowerCase().includes(state.searchQuery))
   );
 }
 
-function renderTable(showDiff) {
-  renderTableData(state.workingData, showDiff || false);
-}
-
-function renderTableData(data, showDiff) {
-  // Build index map for filtered rows back to original data indices
-  const filteredWithIdx = data.map((row, idx) => ({ row, idx }))
-    .filter(({ row }) => !state.searchQuery || state.headers.some(h => String(row[h] || '').toLowerCase().includes(state.searchQuery)));
-
-  const total = filteredWithIdx.length;
+function renderTable() {
+  const filtered = getFilteredRows();
+  const total = filtered.length;
   const maxPage = Math.max(0, Math.ceil(total / state.pageSize) - 1);
   if (state.page > maxPage) state.page = maxPage;
 
-  const pageRows = filteredWithIdx.slice(state.page * state.pageSize, (state.page + 1) * state.pageSize);
+  const pageRows = filtered.slice(state.page * state.pageSize, (state.page + 1) * state.pageSize);
 
   document.getElementById('page-info').textContent =
-    `${(state.page * state.pageSize + 1).toLocaleString()}–${Math.min((state.page + 1) * state.pageSize, total).toLocaleString()} of ${total.toLocaleString()}`;
-
+    `${Math.min(state.page * state.pageSize + 1, total).toLocaleString()}–${Math.min((state.page + 1) * state.pageSize, total).toLocaleString()} of ${total.toLocaleString()}`;
   document.getElementById('prev-page').disabled = state.page === 0;
   document.getElementById('next-page').disabled = state.page >= maxPage;
 
+  // Get original indices for changedCells lookup
+  const allFiltered = filtered.map((row, i) => ({ row, idx: state.workingData.indexOf(row) }));
+  const pageWithIdx = allFiltered.slice(state.page * state.pageSize, (state.page + 1) * state.pageSize);
+
   let html = '<table><thead><tr>';
-  state.headers.forEach(h => { html += `<th>${h}</th>`; });
+  state.headers.forEach(h => { html += `<th>${escHtml(h)}</th>`; });
   html += '</tr></thead><tbody>';
 
-  pageRows.forEach(({ row, idx }) => {
-    const rowChanged = showDiff && state.changedCells[idx];
-    html += `<tr${rowChanged ? ' class="changed"' : ''}>`;
+  pageWithIdx.forEach(({ row, idx }) => {
+    const rowHighlighted = state.changedCells[idx];
+    html += `<tr${rowHighlighted ? ' class="changed"' : ''}>`;
     state.headers.forEach(h => {
-      const cellChange = showDiff && state.changedCells[idx] && state.changedCells[idx][h];
+      const cellHighlighted = rowHighlighted && state.changedCells[idx][h];
       const val = row[h] !== undefined && row[h] !== null ? row[h] : '';
-      if (cellChange) {
-        html += `<td class="cell-changed" title="Was: ${escHtml(cellChange.was)}">${escHtml(cellChange.now || val)}</td>`;
-      } else if (isTrueNull(val)) {
-        html += `<td style="color:var(--red);font-style:italic;opacity:0.6;">null</td>`;
-      } else if (typeof val === 'string' && val.trim().toLowerCase() === 'null') {
-        html += `<td style="color:var(--red);font-style:italic;opacity:0.6;">NULL</td>`;
-      } else if (typeof val === 'string' && val.trim() === '') {
-        html += `<td style="color:var(--text3);font-style:italic;">(empty)</td>`;
+      if (cellHighlighted) {
+        html += `<td class="cell-changed">${escHtml(val)}</td>`;
+      } else if (isTrueNull(val) || isNullString(val)) {
+        html += `<td class="cell-null">NULL</td>`;
+      } else if (isBlank(val)) {
+        html += `<td class="cell-empty">(empty)</td>`;
       } else {
         html += `<td>${escHtml(val)}</td>`;
       }
@@ -1578,56 +1336,6 @@ function renderTableData(data, showDiff) {
 
   html += '</tbody></table>';
   document.getElementById('table-wrap').innerHTML = html;
-}
-
-function escHtml(v) {
-  return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ─── HISTORY ──────────────────────────────────────────────────────────────────
-function renderHistory() {
-  const el = document.getElementById('history-track');
-  if (!state.history.length) {
-    el.innerHTML = '<div class="history-empty">No steps approved yet.</div>';
-    return;
-  }
-  el.innerHTML = state.history.map((h, i) =>
-    `<div class="history-item">
-      <div class="history-dot"></div>
-      <span style="flex:1;">${escHtml(h.title)}</span>
-      <button onclick="revertToSnapshot(${i})" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;font-family:'DM Mono',monospace;flex-shrink:0;" title="Revert to after this step">↩</button>
-    </div>`
-  ).join('');
-  el.scrollTop = el.scrollHeight;
-}
-
-function revertToSnapshot(index) {
-  if (!confirm(`Revert to after step ${index + 1}: "${state.history[index].title}"? Steps after this will be lost.`)) return;
-  const snap = state.snapshots[index];
-  state.workingData = snap.workingData.map(r => ({ ...r }));
-  state.headers = [...snap.headers];
-  state.history = state.history.slice(0, index + 1);
-  state.snapshots = state.snapshots.slice(0, index + 1);
-  state.stepIndex = index + 1;
-  state.changedCells = {};
-  state.currentStep = null;
-  updateNullCount();
-  document.getElementById('stat-rows').textContent = state.workingData.length.toLocaleString();
-  document.getElementById('table-mode-label').textContent = 'Current data';
-  document.getElementById('diff-legend').style.display = 'none';
-  renderTable(false);
-  renderHistory();
-  // Reset step panel
-  document.getElementById('step-title').textContent = 'Reverted';
-  document.getElementById('step-rationale').textContent = `Dataset restored to after step ${index + 1}. Approve or deny the current step to continue, or upload a new file.`;
-  document.getElementById('step-code').style.display = 'none';
-  document.getElementById('step-actions').style.display = 'none';
-  document.getElementById('step-content').style.display = 'block';
-  document.getElementById('step-loading').style.display = 'none';
-  document.getElementById('step-done').style.display = 'none';
-  document.getElementById('step-counter').textContent = `step ${state.stepIndex}`;
-  document.getElementById('btn-approve').disabled = false;
-  document.getElementById('btn-deny').disabled = false;
 }
 
 // ─── EXPORT ───────────────────────────────────────────────────────────────────
@@ -1648,29 +1356,35 @@ function exportCSV() {
 
 // ─── RESET ────────────────────────────────────────────────────────────────────
 function resetAll() {
-  state = { rawData: [], workingData: [], headers: [], fileName: '', format: 'excel',
-    stepIndex: 0, history: [], snapshots: [], currentStep: null, changedCells: {}, page: 0, pageSize: 50,
-    searchQuery: '', conversationHistory: [], systemContext: null };
-  demoStepIndex = 0;
+  state = {
+    rawData: [], workingData: [], headers: [], fileName: '',
+    format: state.format, steps: [], stepIndex: 0, visited: new Set(),
+    changedCells: {}, page: 0, pageSize: 50, searchQuery: ''
+  };
   workspace.classList.remove('visible');
   uploadZone.classList.remove('hidden');
-  fileInput.value = '';
   document.getElementById('format-overlay').classList.remove('visible');
+  fileInput.value = '';
   document.getElementById('search-input').value = '';
-  document.getElementById('table-wrap').innerHTML = '<div style="padding: 3rem; text-align: center; color: var(--text3); font-size: 13px;">Upload a CSV to preview your data here</div>';
-  document.getElementById('history-track').innerHTML = '<div class="history-empty">No steps approved yet.</div>';
-  document.getElementById('step-title').textContent = 'Waiting for analysis...';
-  document.getElementById('step-rationale').textContent = 'Upload a CSV to begin the guided cleaning process.';
-  document.getElementById('step-code').style.display = 'none';
+  document.getElementById('table-wrap').innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text3);font-size:13px;">Upload a CSV to preview your data here</div>';
+  document.getElementById('history-track').innerHTML = '<div class="history-empty">No steps visited yet.</div>';
+  document.getElementById('step-title').textContent = 'Upload a CSV to begin';
+  document.getElementById('step-what').textContent = '';
+  document.getElementById('step-rationale').textContent = 'DataStep will analyze your dataset and generate a step-by-step cleaning guide with prompts to paste into Claude.';
+  document.getElementById('prompt-box').style.display = 'none';
+  document.getElementById('watchout-box').classList.remove('visible');
+  document.getElementById('issue-summary').classList.remove('visible');
   document.getElementById('step-actions').style.display = 'none';
   document.getElementById('step-content').style.display = 'block';
   document.getElementById('step-done').style.display = 'none';
-  document.getElementById('step-loading').style.display = 'none';
   document.getElementById('step-counter').textContent = '—';
-  document.getElementById('btn-approve').disabled = false;
-  document.getElementById('btn-deny').disabled = false;
   document.getElementById('diff-legend').style.display = 'none';
-  document.getElementById('table-mode-label').textContent = 'Current data';
+  document.getElementById('table-mode-label').textContent = 'Dataset preview';
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function escHtml(v) {
+  return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 </body>
