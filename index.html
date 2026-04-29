@@ -488,11 +488,9 @@
           display:none;
           background:rgba(200,240,106,0.12);
           border:1px solid rgba(200,240,106,0.3);
-          border-radius:4px;padding:2px 8px;font-size:11px;color:var(--accent);
+          border-radius:4px;padding:2px 10px;font-size:11px;color:var(--accent);
           cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.15s;
-          align-items:center;gap:5px;
         ">
-          <span style="width:8px;height:8px;border-radius:2px;background:rgba(200,240,106,0.5);display:inline-block;"></span>
           <span id="expand-affected-label">show affected only</span>
         </button>
       </div>
@@ -508,6 +506,20 @@
           cursor:pointer;color:var(--text3);font-size:13px;transition:all 0.15s;
         " onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕</button>
       </div>
+    </div>
+    <!-- Step context strip -->
+    <div id="expand-step-context" style="
+      display:none;
+      border-bottom:1px solid var(--border);
+      padding:0.75rem 1.5rem;
+      background:var(--bg3);
+      flex-shrink:0;
+    ">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px;">
+        <span id="expand-step-what" style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);"></span>
+        <span id="expand-step-title" style="font-size:14px;font-family:'Instrument Serif',serif;color:var(--text);"></span>
+      </div>
+      <ul id="expand-step-bullets" style="list-style:none;display:flex;flex-wrap:wrap;gap:6px 20px;padding:0;margin:0;"></ul>
     </div>
     <div id="expand-table-wrap" style="overflow:auto;flex:1;"></div>
     <div style="padding:0.75rem 1.5rem;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text3);flex-shrink:0;">
@@ -566,11 +578,12 @@
               <ul id="watchout-list"></ul>
             </div>
 
+            <div class="issue-summary" id="issue-summary">
+              <div class="issue-summary-label">The issue in brief</div>
+              <ul id="issue-summary-list"></ul>
+            </div>
+
             <div class="step-actions" id="step-actions" style="display:none;">
-              <div class="issue-summary" id="issue-summary">
-                <div class="issue-summary-label">The issue in brief</div>
-                <ul id="issue-summary-list"></ul>
-              </div>
 
               <!-- DETERMINISTIC PATH: direct fix -->
               <div id="fix-path" style="display:none;">
@@ -608,8 +621,9 @@
         </div>
       </div>
 
-      <!-- RIGHT: DATA TABLE -->
-      <div class="data-panel">
+      <!-- RIGHT: DATA TABLE + LOG -->
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        <div class="data-panel">
         <div class="data-panel-header">
           <div class="data-panel-title" id="table-mode-label">Dataset preview</div>
           <div style="display:flex;align-items:center;gap:10px;">
@@ -618,17 +632,15 @@
                 background:rgba(200,240,106,0.12);
                 border:1px solid rgba(200,240,106,0.3);
                 border-radius:4px;
-                padding:2px 8px;
+                padding:2px 10px;
                 font-size:11px;
                 color:var(--accent);
                 cursor:pointer;
                 font-family:'DM Mono',monospace;
                 transition:all 0.15s;
-                display:flex;align-items:center;gap:5px;
               ">
-                <span style="width:8px;height:8px;border-radius:2px;background:rgba(200,240,106,0.5);display:inline-block;"></span>
-                <span id="affected-toggle-label">show affected only</span>
-              </button>
+              <span id="affected-toggle-label">show affected only</span>
+            </button>
             </div>
             <button id="expand-btn" onclick="toggleExpand()" title="Expand table" style="
               background:transparent;
@@ -656,28 +668,31 @@
         </div>
       </div>
 
-    </div>
-
-    <!-- LOG BAR -->
-    <div style="margin-top:1.5rem;">
-      <div id="log-notes" style="display:none;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;"></div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="text" id="log-input" placeholder="Add a note about this session..." style="
-          flex:1;background:var(--bg2);border:1px solid var(--border);
-          border-radius: var(--radius);padding:9px 14px;
-          color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;
-          outline:none;transition:border-color 0.15s;
-        " onkeydown="if(event.key==='Enter')addLogNote()" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-        <button onclick="addLogNote()" style="
-          padding:9px 16px;background:var(--bg2);
-          border:1px solid var(--border2);border-radius:var(--radius);
-          color:var(--text2);font-size:13px;cursor:pointer;
-          font-family:'DM Sans',sans-serif;transition:all 0.15s;white-space:nowrap;
-        " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">+ Add note</button>
       </div>
-    </div>
 
-  </div>
+      <!-- LOG BAR -->
+      <div>
+        <div id="log-notes" style="display:none;margin-bottom:8px;flex-direction:column;gap:6px;"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="log-input" placeholder="Add a note about this session..." style="
+            flex:1;background:var(--bg2);border:1px solid var(--border);
+            border-radius:var(--radius);padding:9px 14px;
+            color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;
+            outline:none;transition:border-color 0.15s;
+          " onkeydown="if(event.key==='Enter')addLogNote()" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          <button onclick="addLogNote()" style="
+            padding:9px 16px;background:var(--bg2);
+            border:1px solid var(--border2);border-radius:var(--radius);
+            color:var(--text2);font-size:13px;cursor:pointer;
+            font-family:'DM Sans',sans-serif;transition:all 0.15s;white-space:nowrap;
+          " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">+ Add note</button>
+        </div>
+      </div>
+
+      </div><!-- end data+log wrapper -->
+
+    </div><!-- end workspace-grid -->
+  </div><!-- end workspace -->
 </main>
 
 <script>
@@ -1970,6 +1985,29 @@ function toggleExpand() {
     document.getElementById('expand-mode-label').textContent =
       document.getElementById('table-mode-label').textContent;
     syncAffectedToggleUI();
+
+    // Populate step context strip
+    const ctx = document.getElementById('expand-step-context');
+    if (state.steps.length && state.stepIndex < state.steps.length) {
+      const step = state.steps[state.stepIndex];
+      const titleFn = STEP_TITLES[step.type];
+      const title = typeof titleFn === 'function'
+        ? titleFn(step.column || (step.columns && step.columns.join(', ')) || '')
+        : titleFn;
+      document.getElementById('expand-step-what').textContent = STEP_WHAT[step.type] || '';
+      document.getElementById('expand-step-title').textContent = title;
+      const summaryFn = STEP_SUMMARIES[step.type];
+      const bullets = summaryFn ? summaryFn(step) : [];
+      document.getElementById('expand-step-bullets').innerHTML = bullets.map(b =>
+        `<li style="font-size:11px;color:var(--text3);padding-left:0.75rem;position:relative;">
+          <span style="position:absolute;left:0;color:var(--accent);">·</span>${escHtml(b)}
+        </li>`
+      ).join('');
+      ctx.style.display = bullets.length ? 'block' : 'none';
+    } else {
+      ctx.style.display = 'none';
+    }
+
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     // Animate in
