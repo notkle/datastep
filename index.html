@@ -1253,6 +1253,8 @@ TERMINOLOGY: "null_count" = cells with NULL string or true nulls. "empty_string_
 JSON format for a step:
 {"title":"max 8 words","rationale":"1-2 sentences","steps":["action 1","action 2","action 3"],"code":"exact ${state.format.toUpperCase()} code","operation":{"action":"action_type","columns":"column_name or all"},"done":false}
 
+The "operation" field is REQUIRED. "action" should be a snake_case description like "fill_nulls", "trim_whitespace", "remove_duplicates", "convert_type", "rename_headers" etc. "columns" should be the exact column name or "all".
+
 JSON format when all cleaning is complete:
 {"done":true,"summary":"brief summary"}
 
@@ -1314,10 +1316,16 @@ function showStep(step) {
   document.getElementById('deny-box').classList.remove('visible');
   document.getElementById('deny-feedback').value = '';
 
+  // Default operation if Gemini omits it
+  if (!step.operation) {
+    step.operation = { action: 'generic', columns: 'all' };
+  }
+
   showPreview(step.operation);
 }
 
 function showPreview(operation) {
+  if (!operation) return;
   state.changedCells = {};
   const preview = state.workingData.map(r => ({ ...r }));
 
