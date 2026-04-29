@@ -6,6 +6,7 @@
 <title>DataStep — Guided Data Cleaning</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -553,10 +554,10 @@
 <main>
   <!-- UPLOAD -->
   <div id="upload-zone">
-    <input type="file" id="file-input" accept=".csv" style="display:none;">
+    <input type="file" id="file-input" accept=".csv,.xlsx,.xls,.xlsm" style="display:none;">
     <div class="upload-icon">↑</div>
-    <div class="upload-title">Drop your CSV here</div>
-    <p class="upload-sub">or click to browse &nbsp;·&nbsp; <strong>All processing is local</strong> — your data never leaves your browser</p>
+    <div class="upload-title">Drop your file here</div>
+    <p class="upload-sub">CSV, Excel (.xlsx, .xls) &nbsp;·&nbsp; <strong>All processing is local</strong> — your data never leaves your browser</p>
   </div>
 
   <!-- WORKSPACE -->
@@ -723,10 +724,47 @@
 
     <!-- ANALYSIS VIEW -->
     <div id="analysis-view" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:1.5rem;">
+        <button onclick="exportReport()" style="
+          padding:7px 16px;background:var(--bg2);border:1px solid var(--border2);
+          border-radius:var(--radius);color:var(--text2);font-size:12px;cursor:pointer;
+          font-family:'DM Sans',sans-serif;transition:all 0.15s;
+        " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+           onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">⬇ Export report</button>
+      </div>
 
       <!-- COLUMN STATISTICS TABLE -->
       <div style="margin-bottom:2rem;">
-        <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Column Statistics</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);">Column Statistics</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="stats-filter-type" onchange="applyStatsFilter()" style="
+              background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+              padding:4px 8px;color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;
+              outline:none;cursor:pointer;">
+              <option value="">All types</option>
+              <option value="numeric">Numeric</option>
+              <option value="categorical">Categorical</option>
+              <option value="date">Date</option>
+              <option value="mixed">Mixed</option>
+            </select>
+            <select id="stats-filter-missing" onchange="applyStatsFilter()" style="
+              background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+              padding:4px 8px;color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;
+              outline:none;cursor:pointer;">
+              <option value="">Any completeness</option>
+              <option value="has_missing">Has missing data</option>
+              <option value="gt10">Missing &gt; 10%</option>
+              <option value="gt50">Missing &gt; 50%</option>
+              <option value="complete">100% complete</option>
+            </select>
+            <button onclick="resetStatsFilter()" style="
+              background:transparent;border:1px solid var(--border2);border-radius:6px;
+              padding:4px 10px;color:var(--text3);font-size:11px;cursor:pointer;
+              font-family:'DM Mono',monospace;transition:all 0.15s;"
+              onmouseover="this.style.color='var(--text2)'" onmouseout="this.style.color='var(--text3)'">Reset</button>
+          </div>
+        </div>
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
           <div style="overflow-x:auto;">
             <table id="stats-table" style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -739,6 +777,25 @@
         </div>
       </div>
 
+      <div id="analysis-keydup" style="margin-bottom:2rem;display:none;">
+        <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:0.75rem;">Key Column Duplicate Check</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text2);">Check duplicates on:</span>
+          <div id="key-col-checkboxes" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+          <button onclick="runKeyDupCheck()" style="
+            padding:5px 14px;background:var(--accent);color:#0e0e0f;border:none;
+            border-radius:6px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;">
+            Check
+          </button>
+        </div>
+        <div id="key-dup-result"></div>
+      </div>
+
+      <div id="analysis-consistency" style="margin-bottom:2rem;display:none;">
+        <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Value Consistency Checks</div>
+        <div id="analysis-consistency-content" style="display:flex;flex-direction:column;gap:1rem;"></div>
+      </div>
+
       <div id="analysis-primary" style="margin-bottom:2rem;">
         <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Primary Analysis</div>
         <div id="analysis-primary-content" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:1.5rem;"></div>
@@ -747,7 +804,7 @@
         <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Secondary Analysis</div>
         <div id="analysis-secondary-content" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:1.5rem;"></div>
       </div>
-    </div>
+    </div><!-- end analysis-view -->
 
   </div><!-- end workspace -->
 </main>
@@ -847,11 +904,20 @@ function measureStepHeights() {
 
 // ─── FILE PARSE ───────────────────────────────────────────────────────────────
 function handleFile(file) {
-  if (!file || !file.name.endsWith('.csv')) return alert('Please upload a CSV file.');
+  if (!file) return;
+  const name = file.name.toLowerCase();
+  const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm');
+  const isCSV = name.endsWith('.csv');
+  if (!isExcel && !isCSV) return alert('Please upload a CSV or Excel file (.csv, .xlsx, .xls, .xlsm).');
   state.fileName = file.name;
   const reader = new FileReader();
-  reader.onload = e => parseCSV(e.target.result);
-  reader.readAsText(file);
+  if (isCSV) {
+    reader.onload = e => parseCSV(e.target.result);
+    reader.readAsText(file);
+  } else {
+    reader.onload = e => parseExcel(e.target.result);
+    reader.readAsArrayBuffer(file);
+  }
 }
 
 function parseCSV(text) {
@@ -896,6 +962,55 @@ function parseCSV(text) {
   renderTable();
 
   document.getElementById('format-overlay').classList.add('visible');
+}
+
+// ─── EXCEL PARSER ─────────────────────────────────────────────────────────────
+function parseExcel(arrayBuffer) {
+  try {
+    const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+
+    // If multiple sheets, use the first one (could prompt user later)
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    // Convert to array of arrays preserving raw values
+    const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+
+    if (raw.length < 2) return alert('Excel sheet appears empty or has no data rows.');
+
+    // First row = headers
+    state.headers = raw[0].map(h => String(h).trim());
+    state.rawData = raw.slice(1).filter(row => row.some(v => v !== '')).map(row => {
+      const obj = {};
+      state.headers.forEach((h, i) => { obj[h] = row[i] !== undefined ? String(row[i]) : ''; });
+      return obj;
+    });
+
+    state.workingData = state.rawData.map(r => ({ ...r }));
+    state.stepIndex = 0;
+    state.visited = new Set();
+    state.history = [];
+    state.steps = [];
+    state.changedCells = {};
+    state.affectedFilterActive = false;
+    state.sortCol = null;
+    state.sortDir = null;
+    state.page = 0;
+    state.searchQuery = '';
+
+    document.getElementById('file-name-display').textContent = state.fileName;
+    document.getElementById('stat-rows').textContent = state.workingData.length.toLocaleString();
+    document.getElementById('stat-cols').textContent = state.headers.length;
+    updateCounts();
+
+    uploadZone.classList.add('hidden');
+    workspace.classList.add('visible');
+    renderTable();
+
+    document.getElementById('format-overlay').classList.add('visible');
+  } catch (e) {
+    alert('Failed to parse Excel file: ' + e.message);
+  }
 }
 
 // ─── NULL / BLANK HELPERS ─────────────────────────────────────────────────────
@@ -1988,6 +2103,131 @@ function resetAll() {
   document.getElementById('table-mode-label').textContent = 'Dataset preview';
 }
 
+window.runKeyDupCheck = function() {
+  const selected = state.headers.filter(h => {
+    const el = document.getElementById(`keycheck_${h}`);
+    return el && el.checked;
+  });
+  const result = document.getElementById('key-dup-result');
+  if (selected.length === 0) {
+    result.innerHTML = '<div style="font-size:12px;color:var(--text3);">Select at least one column to check.</div>';
+    return;
+  }
+  const seen = new Map();
+  const dupes = [];
+  state.workingData.forEach((row, i) => {
+    const key = selected.map(h => row[h]).join('|||');
+    if (seen.has(key)) {
+      dupes.push({ row, key, firstIdx: seen.get(key), thisIdx: i });
+    } else {
+      seen.set(key, i);
+    }
+  });
+  if (dupes.length === 0) {
+    result.innerHTML = `<div style="font-size:12px;color:var(--accent);padding:0.75rem 1rem;background:var(--accent-dim);border-radius:var(--radius);border:1px solid rgba(200,240,106,0.2);">✓ No duplicate keys found on: ${selected.map(h => `"${escHtml(h)}"`).join(', ')}. These columns form a unique key across all ${state.workingData.length.toLocaleString()} rows.</div>`;
+  } else {
+    const pct = ((dupes.length / state.workingData.length) * 100).toFixed(1);
+    const sample = dupes.slice(0, 5);
+    result.innerHTML = `
+      <div style="padding:0.75rem 1rem;background:var(--red-dim);border:1px solid rgba(240,106,106,0.2);border-radius:var(--radius);margin-bottom:0.75rem;">
+        <div style="font-size:13px;color:var(--red);margin-bottom:4px;">⚠ ${dupes.length.toLocaleString()} duplicate keys found (${pct}% of rows)</div>
+        <div style="font-size:12px;color:var(--text2);">Columns checked: ${selected.map(h => `"${escHtml(h)}"`).join(', ')}. These rows share the same key value as an earlier row — if this column set is meant to be a unique identifier, these are data integrity violations.</div>
+      </div>
+      <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);">
+        Sample duplicates:<br>
+        ${sample.map(d => `Row ${d.thisIdx + 1} duplicates row ${d.firstIdx + 1}: ${selected.map(h => `${h}="${d.row[h]}"`).join(', ')}`).join('<br>')}
+        ${dupes.length > 5 ? `<br>...and ${dupes.length - 5} more` : ''}
+      </div>`;
+  }
+};
+
+// ─── EXPORT REPORT ────────────────────────────────────────────────────────────
+function exportReport() {
+  const stats = computeStats();
+  const now = new Date().toLocaleString();
+
+  const tableRows = statsRows.map(row => `
+    <tr>
+      <td>${escHtml(row.name)}</td>
+      <td>${row.type}</td>
+      <td>${row.nonNull}%</td>
+      <td>${row.unique.toLocaleString()}</td>
+      <td>${row.min === null ? '—' : row.min}</td>
+      <td>${row.max === null ? '—' : row.max}</td>
+      <td>${row.mean === null ? '—' : row.mean}</td>
+      <td>${row.median === null ? '—' : row.median}</td>
+      <td>${row.std === null ? '—' : row.std}</td>
+      <td>${row.entropy}</td>
+      <td>${escHtml(row.top)}</td>
+    </tr>`).join('');
+
+  const issues = state.steps.map((s, i) => {
+    const titleFn = STEP_TITLES[s.type];
+    const title = typeof titleFn === 'function'
+      ? titleFn(s.column || (s.columns && s.columns.join(', ')) || '')
+      : titleFn;
+    const what = STEP_WHAT[s.type] || '';
+    return `<tr><td>${i + 1}</td><td>${escHtml(what)}</td><td>${escHtml(title)}</td></tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DataStep Report — ${escHtml(state.fileName)}</title>
+<style>
+  body { font-family: -apple-system, sans-serif; color: #1a1a1a; max-width: 1100px; margin: 0 auto; padding: 2rem; line-height: 1.6; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  h2 { font-size: 16px; margin: 2rem 0 0.75rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 6px; color: #333; }
+  .meta { font-size: 13px; color: #666; margin-bottom: 2rem; }
+  .stat-chips { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
+  .chip { background: #f5f5f5; border-radius: 8px; padding: 0.75rem 1.25rem; }
+  .chip-val { font-size: 22px; font-weight: 600; }
+  .chip-label { font-size: 12px; color: #666; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 1rem; }
+  th { background: #f5f5f5; padding: 8px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #ddd; white-space: nowrap; }
+  td { padding: 7px 10px; border-bottom: 1px solid #eee; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .issue-row td:nth-child(2) { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .footer { margin-top: 3rem; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 1rem; }
+</style>
+</head>
+<body>
+<h1>DataStep Report</h1>
+<div class="meta">File: <strong>${escHtml(state.fileName)}</strong> · Generated: ${now}</div>
+
+<div class="stat-chips">
+  <div class="chip"><div class="chip-val">${state.workingData.length.toLocaleString()}</div><div class="chip-label">Rows</div></div>
+  <div class="chip"><div class="chip-val">${state.headers.length}</div><div class="chip-label">Columns</div></div>
+  <div class="chip"><div class="chip-val">${document.getElementById('stat-nulls').textContent}</div><div class="chip-label">Nulls</div></div>
+  <div class="chip"><div class="chip-val">${document.getElementById('stat-blanks').textContent}</div><div class="chip-label">Empty</div></div>
+  <div class="chip"><div class="chip-val">${state.steps.length}</div><div class="chip-label">Issues detected</div></div>
+</div>
+
+<h2>Column Statistics</h2>
+<table>
+  <thead><tr><th>Column</th><th>Type</th><th>Non-null%</th><th>Unique</th><th>Min</th><th>Max</th><th>Mean</th><th>Median</th><th>Std dev</th><th>Entropy</th><th>Top value</th></tr></thead>
+  <tbody>${tableRows}</tbody>
+</table>
+
+${state.steps.length > 0 ? `
+<h2>Detected Issues (${state.steps.length})</h2>
+<table>
+  <thead><tr><th>#</th><th>Issue type</th><th>Description</th></tr></thead>
+  <tbody class="issue-row">${issues}</tbody>
+</table>` : '<h2>Detected Issues</h2><p style="color:#666;font-size:13px;">No issues detected.</p>'}
+
+<div class="footer">Generated by DataStep · ${now}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = state.fileName.replace('.csv', '_datastep_report.html');
+  a.click();
+}
+
 // ─── MODE SWITCHING ───────────────────────────────────────────────────────────
 let currentMode = 'clean';
 let chartInstances = [];
@@ -2023,6 +2263,7 @@ function switchMode(mode) {
 
 // ─── ANALYSIS ENGINE ──────────────────────────────────────────────────────────
 // ─── ANALYSIS ENGINE ──────────────────────────────────────────────────────────
+let statsRows = [];
 let statsSortCol = null;
 let statsSortDir = 'asc';
 
@@ -2041,8 +2282,7 @@ function buildStatsTable(stats) {
     { key: 'entropy', label: 'Entropy',   fmt: v => v },
   ];
 
-  // Build rows data
-  const rows = state.headers.map(h => {
+  statsRows = state.headers.map(h => {
     const s = stats.columns[h];
     const vals = state.workingData.map(r => r[h]).filter(v => !isEffectivelyMissing(v));
     const numeric = vals.map(v => parseFloat(v)).filter(v => !isNaN(v));
@@ -2073,61 +2313,11 @@ function buildStatsTable(stats) {
       median: s.isNumeric ? median : null,
       std: s.isNumeric ? std : null,
       top, entropy,
-      _missing: 100 - nonNull,
+      _missing: +(100 - nonNull).toFixed(1),
     };
   });
 
-  function renderTable() {
-    const tbody = document.getElementById('stats-tbody');
-    const thead = document.getElementById('stats-thead');
-
-    // Header
-    thead.innerHTML = cols.map(c => `
-      <th onclick="sortStatsTable('${c.key}')" style="
-        padding:10px 12px;text-align:left;font-size:11px;font-family:'DM Mono',monospace;
-        letter-spacing:0.04em;color:${statsSortCol === c.key ? 'var(--accent)' : 'var(--text2)'};
-        border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;
-        user-select:none;font-weight:500;
-      ">${c.label}${statsSortCol === c.key ? (statsSortDir === 'asc' ? ' ↑' : ' ↓') : ''}</th>
-    `).join('');
-
-    // Sort
-    const sorted = [...rows].sort((a, b) => {
-      if (!statsSortCol) return 0;
-      const va = a[statsSortCol], vb = b[statsSortCol];
-      if (va === null && vb === null) return 0;
-      if (va === null) return 1;
-      if (vb === null) return -1;
-      const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
-      return statsSortDir === 'asc' ? cmp : -cmp;
-    });
-
-    tbody.innerHTML = sorted.map((row, i) => {
-      const typeColor = row.type === 'numeric' ? 'var(--blue)' : row.type === 'date' ? 'var(--accent)' : row.type === 'mixed' ? 'var(--amber)' : 'var(--text2)';
-      const missingBar = row._missing > 0
-        ? `<div style="display:flex;align-items:center;gap:6px;">
-            <span>${row.nonNull}%</span>
-            <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;overflow:hidden;">
-              <div style="width:${row._missing}%;height:100%;background:var(--red);opacity:0.7;"></div>
-            </div>
-           </div>`
-        : `<span style="color:var(--accent);">${row.nonNull}%</span>`;
-
-      return `<tr style="border-bottom:1px solid var(--border);${i % 2 === 0 ? '' : 'background:rgba(255,255,255,0.015);'}">
-        <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text);white-space:nowrap;font-weight:500;">${escHtml(row.name)}</td>
-        <td style="padding:9px 12px;font-size:11px;"><span style="color:${typeColor};font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.04em;">${row.type}</span></td>
-        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;">${missingBar}</td>
-        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.unique.toLocaleString()}</td>
-        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.min === null ? '<span style="color:var(--text3);">—</span>' : row.min}</td>
-        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.max === null ? '<span style="color:var(--text3);">—</span>' : row.max}</td>
-        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.mean === null ? '<span style="color:var(--text3);">—</span>' : row.mean}</td>
-        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.median === null ? '<span style="color:var(--text3);">—</span>' : row.median}</td>
-        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.std === null ? '<span style="color:var(--text3);">—</span>' : row.std}</td>
-        <td style="padding:9px 12px;font-size:11px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(row.top)}">${escHtml(row.top)}</td>
-        <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);">${row.entropy}</td>
-      </tr>`;
-    }).join('');
-  }
+  renderStatsTable(cols);
 
   window.sortStatsTable = function(key) {
     if (statsSortCol === key) {
@@ -2136,10 +2326,195 @@ function buildStatsTable(stats) {
       statsSortCol = key;
       statsSortDir = 'asc';
     }
-    renderTable();
+    renderStatsTable(cols);
   };
 
-  renderTable();
+  window.applyStatsFilter = function() { renderStatsTable(cols); };
+  window.resetStatsFilter = function() {
+    document.getElementById('stats-filter-type').value = '';
+    document.getElementById('stats-filter-missing').value = '';
+    renderStatsTable(cols);
+  };
+}
+
+function renderStatsTable(cols) {
+  const typeFilter = document.getElementById('stats-filter-type')?.value || '';
+  const missingFilter = document.getElementById('stats-filter-missing')?.value || '';
+
+  let filtered = statsRows.filter(row => {
+    if (typeFilter && row.type !== typeFilter) return false;
+    if (missingFilter === 'has_missing' && row._missing === 0) return false;
+    if (missingFilter === 'gt10' && row._missing <= 10) return false;
+    if (missingFilter === 'gt50' && row._missing <= 50) return false;
+    if (missingFilter === 'complete' && row._missing > 0) return false;
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (!statsSortCol) return 0;
+    const va = a[statsSortCol], vb = b[statsSortCol];
+    if (va === null && vb === null) return 0;
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+    return statsSortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const thead = document.getElementById('stats-thead');
+  const tbody = document.getElementById('stats-tbody');
+
+  thead.innerHTML = cols.map(c => `
+    <th onclick="sortStatsTable('${c.key}')" style="
+      padding:10px 12px;text-align:left;font-size:11px;font-family:'DM Mono',monospace;
+      letter-spacing:0.04em;color:${statsSortCol === c.key ? 'var(--accent)' : 'var(--text2)'};
+      border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;
+      user-select:none;font-weight:500;
+    ">${c.label}${statsSortCol === c.key ? (statsSortDir === 'asc' ? ' ↑' : ' ↓') : ''}</th>
+  `).join('');
+
+  if (sorted.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${cols.length}" style="padding:2rem;text-align:center;color:var(--text3);font-size:13px;">No columns match the current filters.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = sorted.map((row, i) => {
+    const typeColor = row.type === 'numeric' ? 'var(--blue)' : row.type === 'date' ? 'var(--accent)' : row.type === 'mixed' ? 'var(--amber)' : 'var(--text2)';
+    const missingBar = row._missing > 0
+      ? `<div style="display:flex;align-items:center;gap:6px;">
+          <span>${row.nonNull}%</span>
+          <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;overflow:hidden;">
+            <div style="width:${Math.min(row._missing, 100)}%;height:100%;background:var(--red);opacity:0.7;"></div>
+          </div>
+         </div>`
+      : `<span style="color:var(--accent);">${row.nonNull}%</span>`;
+
+    const cell = (v, extra='') => v === null
+      ? `<td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);">—</td>`
+      : `<td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);${extra}">${escHtml(String(v))}</td>`;
+
+    return `<tr style="border-bottom:1px solid var(--border);${i % 2 === 0 ? '' : 'background:rgba(255,255,255,0.015);'}">
+      <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text);white-space:nowrap;font-weight:500;">${escHtml(row.name)}</td>
+      <td style="padding:9px 12px;font-size:11px;"><span style="color:${typeColor};font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.04em;">${row.type}</span></td>
+      <td style="padding:9px 12px;font-size:11px;font-family:'DM Mono',monospace;">${missingBar}</td>
+      ${cell(row.unique.toLocaleString())}
+      ${cell(row.min)}
+      ${cell(row.max)}
+      ${cell(row.mean)}
+      ${cell(row.median)}
+      ${cell(row.std)}
+      <td style="padding:9px 12px;font-size:11px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(row.top)}">${escHtml(row.top)}</td>
+      ${cell(row.entropy)}
+    </tr>`;
+  }).join('');
+}
+
+function buildConsistencyChecks(stats) {
+  const container = document.getElementById('analysis-consistency-content');
+  const section = document.getElementById('analysis-consistency');
+  container.innerHTML = '';
+  const checks = [];
+  const numCols = state.headers.filter(h => stats.columns[h].isNumeric);
+
+  // Try every combination of 3 numeric columns to find A * B ≈ C relationships
+  for (let i = 0; i < numCols.length; i++) {
+    for (let j = i + 1; j < numCols.length; j++) {
+      for (let k = 0; k < numCols.length; k++) {
+        if (k === i || k === j) continue;
+        const a = numCols[i], b = numCols[j], c = numCols[k];
+        const sample = state.workingData.slice(0, 200).filter(r =>
+          !isEffectivelyMissing(r[a]) && !isEffectivelyMissing(r[b]) && !isEffectivelyMissing(r[c])
+        );
+        if (sample.length < 20) continue;
+        const matches = sample.filter(r => {
+          const product = parseFloat(r[a]) * parseFloat(r[b]);
+          const actual = parseFloat(r[c]);
+          return Math.abs(product - actual) < Math.abs(actual) * 0.01;
+        });
+        if (matches.length / sample.length > 0.8) {
+          // Found a likely A * B = C relationship — check full dataset for violations
+          const violations = state.workingData.filter(r => {
+            if (isEffectivelyMissing(r[a]) || isEffectivelyMissing(r[b]) || isEffectivelyMissing(r[c])) return false;
+            const product = parseFloat(r[a]) * parseFloat(r[b]);
+            const actual = parseFloat(r[c]);
+            return Math.abs(product - actual) > Math.abs(actual) * 0.01 + 0.001;
+          });
+          if (violations.length > 0 && violations.length < state.workingData.length * 0.5) {
+            checks.push({ a, b, c, op: '×', violations });
+          }
+        }
+      }
+    }
+  }
+
+  // Also check A + B ≈ C
+  for (let i = 0; i < numCols.length; i++) {
+    for (let j = i + 1; j < numCols.length; j++) {
+      for (let k = 0; k < numCols.length; k++) {
+        if (k === i || k === j) continue;
+        const a = numCols[i], b = numCols[j], c = numCols[k];
+        const sample = state.workingData.slice(0, 200).filter(r =>
+          !isEffectivelyMissing(r[a]) && !isEffectivelyMissing(r[b]) && !isEffectivelyMissing(r[c])
+        );
+        if (sample.length < 20) continue;
+        const matches = sample.filter(r => {
+          const sum = parseFloat(r[a]) + parseFloat(r[b]);
+          const actual = parseFloat(r[c]);
+          return Math.abs(sum - actual) < Math.abs(actual) * 0.01 + 0.001;
+        });
+        if (matches.length / sample.length > 0.8) {
+          const violations = state.workingData.filter(r => {
+            if (isEffectivelyMissing(r[a]) || isEffectivelyMissing(r[b]) || isEffectivelyMissing(r[c])) return false;
+            const sum = parseFloat(r[a]) + parseFloat(r[b]);
+            const actual = parseFloat(r[c]);
+            return Math.abs(sum - actual) > Math.abs(actual) * 0.01 + 0.001;
+          });
+          if (violations.length > 0 && violations.length < state.workingData.length * 0.5) {
+            checks.push({ a, b, c, op: '+', violations });
+          }
+        }
+      }
+    }
+  }
+
+  // Deduplicate — keep unique column combinations
+  const seen = new Set();
+  const unique = checks.filter(ch => {
+    const key = [ch.a, ch.b, ch.c, ch.op].join('|');
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+
+  if (unique.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+
+  unique.forEach(ch => {
+    const pct = ((ch.violations.length / state.workingData.length) * 100).toFixed(1);
+    const sample = ch.violations.slice(0, 3);
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;';
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+        <div style="font-size:13px;color:var(--text);font-weight:500;">
+          <span style="color:var(--accent);font-family:'DM Mono',monospace;">"${escHtml(ch.a)}" ${ch.op} "${escHtml(ch.b)}" ≠ "${escHtml(ch.c)}"</span>
+        </div>
+        <div style="font-size:11px;font-family:'DM Mono',monospace;color:${parseFloat(pct) > 5 ? 'var(--red)' : 'var(--amber)'};">
+          ${ch.violations.length.toLocaleString()} violations (${pct}%)
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:0.75rem;">
+        DataStep detected that <strong style="color:var(--text2);">${escHtml(ch.a)} ${ch.op} ${escHtml(ch.b)}</strong> should equal <strong style="color:var(--text2);">${escHtml(ch.c)}</strong> in most rows, but ${ch.violations.length.toLocaleString()} rows (${pct}%) break this rule.
+        ${parseFloat(pct) > 10 ? ' High violation rate — likely a systematic data entry or import error.' : ' Low violation rate — may be rounding differences or legitimate exceptions.'}
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;">
+        Sample violations: ${sample.map(r => `${ch.a}=${r[ch.a]}, ${ch.b}=${r[ch.b]}, ${ch.c}=${r[ch.c]} (expected ${(parseFloat(r[ch.a]) * (ch.op === '×' ? parseFloat(r[ch.b]) : 0) + (ch.op === '+' ? parseFloat(r[ch.b]) : 0)).toFixed(2)})`).join(' · ')}
+      </div>
+    `;
+    container.appendChild(card);
+  });
 }
 
 function buildAnalysis() {
@@ -2153,7 +2528,20 @@ function buildAnalysis() {
   secondary.innerHTML = '';
 
   const stats = computeStats();
+  // Build key column checkboxes
+  const keyColSection = document.getElementById('analysis-keydup');
+  const keyColBoxes = document.getElementById('key-col-checkboxes');
+  keyColSection.style.display = 'block';
+  keyColBoxes.innerHTML = state.headers.map(h => `
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer;
+      background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 10px;">
+      <input type="checkbox" id="keycheck_${escHtml(h)}" value="${escHtml(h)}" style="accent-color:var(--accent);">
+      ${escHtml(h)}
+    </label>
+  `).join('');
+
   buildStatsTable(stats);
+  buildConsistencyChecks(stats);
   const ACCENT = '#c8f06a';
   const AMBER = '#f0b86a';
   const RED = '#f06a6a';
