@@ -903,22 +903,22 @@ function parseCSV(text) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return alert('CSV appears empty.');
 
-  const parseRow = line => {
+  const parseRow = (line, trimValues = false) => {
     const result = [];
     let cur = '', inQ = false;
     for (let i = 0; i < line.length; i++) {
       const c = line[i];
       if (c === '"') { inQ = !inQ; }
-      else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+      else if (c === ',' && !inQ) { result.push(trimValues ? cur.trim() : cur); cur = ''; }
       else { cur += c; }
     }
-    result.push(cur.trim());
+    result.push(trimValues ? cur.trim() : cur);
     return result;
   };
 
-  state.headers = parseRow(lines[0]);
+  state.headers = parseRow(lines[0], true); // always trim headers
   state.rawData = lines.slice(1).filter(l => l.trim()).map(l => {
-    const vals = parseRow(l);
+    const vals = parseRow(l, false); // preserve whitespace in data
     const row = {};
     state.headers.forEach((h, i) => { row[h] = vals[i] !== undefined ? vals[i] : ''; });
     return row;
