@@ -610,84 +610,6 @@
   .page-btn:hover { border-color: var(--accent); color: var(--accent); }
   .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  /* FORMAT RECOMMENDATION */
-  .format-recommendation {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 2rem;
-    margin-bottom: 1.5rem;
-    display: none;
-  }
-
-  .format-recommendation.visible { display: block; }
-
-  .format-rec-title {
-    font-family: 'Instrument Serif', serif;
-    font-size: 20px;
-    margin-bottom: 0.5rem;
-  }
-
-  .format-rec-sub {
-    font-size: 13px;
-    color: var(--text2);
-    margin-bottom: 1.5rem;
-    line-height: 1.7;
-  }
-
-  .format-rec-options {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-bottom: 1rem;
-  }
-
-  .format-rec-option {
-    border: 1px solid var(--border2);
-    border-radius: var(--radius);
-    padding: 1rem;
-    cursor: pointer;
-    background: var(--bg3);
-    transition: all 0.15s;
-    text-align: left;
-  }
-
-  .format-rec-option:hover { border-color: var(--accent); }
-  .format-rec-option.recommended { border-color: var(--accent); background: var(--accent-dim); }
-
-  .format-rec-option-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    font-weight: 500;
-    margin-bottom: 4px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .rec-badge {
-    font-size: 9px;
-    background: var(--accent);
-    color: #0e0e0f;
-    padding: 1px 6px;
-    border-radius: 100px;
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-  }
-
-  .format-rec-option-desc {
-    font-size: 11px;
-    color: var(--text3);
-    line-height: 1.5;
-  }
-
-  .format-rec-note {
-    font-size: 12px;
-    color: var(--text3);
-    font-style: italic;
-  }
-
   /* SCROLLBAR */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -713,26 +635,6 @@
 
 <main>
 
-  <!-- FORMAT RECOMMENDATION -->
-  <div class="format-recommendation" id="format-recommendation">
-    <div class="format-rec-title">How would you like to clean this?</div>
-    <div class="format-rec-sub" id="format-rec-sub">Analysing your dataset...</div>
-    <div class="format-rec-options">
-      <div class="format-rec-option" id="rec-excel" onclick="selectFormat('excel')">
-        <div class="format-rec-option-label">Excel <span class="rec-badge" id="badge-excel" style="display:none;">recommended</span></div>
-        <div class="format-rec-option-desc">Formulas and UI steps. Best for non-technical users working directly in spreadsheets.</div>
-      </div>
-      <div class="format-rec-option" id="rec-sql" onclick="selectFormat('sql')">
-        <div class="format-rec-option-label">SQL <span class="rec-badge" id="badge-sql" style="display:none;">recommended</span></div>
-        <div class="format-rec-option-desc">ALTER and UPDATE statements. Best for data destined for a relational database.</div>
-      </div>
-      <div class="format-rec-option" id="rec-python" onclick="selectFormat('python')">
-        <div class="format-rec-option-label">Python <span class="rec-badge" id="badge-python" style="display:none;">recommended</span></div>
-        <div class="format-rec-option-desc">Pandas operations. Best for repeatable pipelines or large-scale processing.</div>
-      </div>
-    </div>
-    <div class="format-rec-note" id="format-rec-note"></div>
-  </div>
 
   <!-- UPLOAD -->
   <div id="upload-zone">
@@ -770,7 +672,7 @@
 
         <div id="step-loading" class="loading-state" style="display:none;">
           <div class="spinner"></div>
-          <div class="loading-text">Generating next step...</div>
+          <div class="loading-text" id="step-loading-text">Evaluating next step...</div>
         </div>
 
         <div id="step-done" class="done-state" style="display:none;">
@@ -958,7 +860,7 @@ function parseCSV(text) {
   workspace.classList.add('visible');
 
   renderTable(false);
-  showFormatRecommendation();
+  analyzeDataset();
 }
 
 const NULL_PLACEHOLDERS = new Set(['n/a', 'na', 'null', 'none', 'nil', '-', '--', '–', '—', '?', 'unknown', 'undefined', 'missing', 'nan', '#n/a', '#na']);
@@ -996,60 +898,6 @@ function updateNullCount() {
   document.getElementById('stat-blanks').textContent = blanks.toLocaleString();
 }
 
-// ─── FORMAT RECOMMENDATION ────────────────────────────────────────────────────
-function showFormatRecommendation() {
-  const rec = document.getElementById('format-recommendation');
-  const sub = document.getElementById('format-rec-sub');
-  const note = document.getElementById('format-rec-note');
-  rec.classList.add('visible');
-
-  const stats = computeStats();
-  const rowCount = state.workingData.length;
-  const colCount = state.headers.length;
-  const numericCols = Object.values(stats).filter(s => s.isNumeric).length;
-
-  let recommended = 'excel';
-  let reasoning = '';
-  let switchNote = '';
-
-  if (rowCount > 50000) {
-    recommended = 'python';
-    reasoning = `Very large dataset (${rowCount.toLocaleString()} rows) — Python/pandas handles bulk operations most efficiently at this scale.`;
-    switchNote = 'Consider exporting to Excel at the end for final review.';
-  } else if (numericCols > colCount * 0.6) {
-    recommended = 'sql';
-    reasoning = `${numericCols} of ${colCount} columns are numeric, suggesting this data is destined for a relational database. SQL operations will translate most directly.`;
-  } else {
-    recommended = 'excel';
-    reasoning = `Mixed column types and manageable size — Excel formulas are the most accessible and immediately applicable approach.`;
-  }
-
-  state.format = recommended;
-  sub.textContent = reasoning;
-  note.textContent = switchNote;
-
-  ['excel', 'sql', 'python'].forEach(f => {
-    document.getElementById(`rec-${f}`).classList.toggle('recommended', f === recommended);
-    document.getElementById(`badge-${f}`).style.display = f === recommended ? 'inline' : 'none';
-  });
-
-  document.querySelectorAll('.pill').forEach(p => {
-    p.classList.toggle('active', p.dataset.format === recommended);
-  });
-}
-
-function selectFormat(format) {
-  state.format = format;
-  ['excel', 'sql', 'python'].forEach(f => {
-    document.getElementById(`rec-${f}`).classList.toggle('recommended', f === format);
-    document.getElementById(`badge-${f}`).style.display = f === format ? 'inline' : 'none';
-  });
-  document.querySelectorAll('.pill').forEach(p => {
-    p.classList.toggle('active', p.dataset.format === format);
-  });
-  document.getElementById('format-recommendation').classList.remove('visible');
-  analyzeDataset();
-}
 
 // ─── STATS COMPUTATION ────────────────────────────────────────────────────────
 function computeStats() {
@@ -1189,6 +1037,22 @@ async function demoResponse(messages) {
 async function analyzeDataset() {
   document.getElementById('analysis-overlay').classList.add('visible');
 
+  // Cycle through informative loading messages
+  const loadingMessages = [
+    'Reading column structure...',
+    'Computing null and blank counts...',
+    'Detecting data types...',
+    'Analysing value distributions...',
+    'Identifying cleaning priorities...',
+    'Generating first recommendation...'
+  ];
+  let msgIdx = 0;
+  document.getElementById('analysis-sub').textContent = loadingMessages[0];
+  const msgInterval = setInterval(() => {
+    msgIdx = (msgIdx + 1) % loadingMessages.length;
+    document.getElementById('analysis-sub').textContent = loadingMessages[msgIdx];
+  }, 1200);
+
   const stats = computeStats();
 
   // Slim payload — only what Gemini actually needs, no pretty-print
@@ -1228,9 +1092,11 @@ Suggest the first cleaning step using ${state.format.toUpperCase()} only.`;
   try {
     const response = await callGemini(state.conversationHistory, 3, state.systemContext);
     const parsed = extractJSON(response);
+    clearInterval(msgInterval);
     document.getElementById('analysis-overlay').classList.remove('visible');
     if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
   } catch (e) {
+    clearInterval(msgInterval);
     document.getElementById('analysis-overlay').classList.remove('visible');
     showError(e.message || 'Unknown error — check browser console.');
   }
@@ -1397,6 +1263,7 @@ async function approveStep() {
 
   document.getElementById('step-content').style.display = 'none';
   document.getElementById('step-loading').style.display = 'block';
+  document.getElementById('step-loading-text').textContent = `Step ${state.stepIndex} applied — analysing remaining issues...`;
   document.getElementById('btn-approve').disabled = true;
   document.getElementById('btn-deny').disabled = true;
 
@@ -1414,6 +1281,7 @@ async function denyStep() {
   document.getElementById('deny-box').classList.remove('visible');
   document.getElementById('step-content').style.display = 'none';
   document.getElementById('step-loading').style.display = 'block';
+  document.getElementById('step-loading-text').textContent = 'Re-evaluating based on your feedback...';
 
   state.changedCells = {};
   document.getElementById('table-mode-label').textContent = 'Current data';
@@ -1587,14 +1455,6 @@ function resetAll() {
   workspace.classList.remove('visible');
   uploadZone.classList.remove('hidden');
   fileInput.value = '';
-  document.getElementById('format-recommendation').classList.remove('visible');
-  document.getElementById('format-rec-sub').textContent = 'Analysing your dataset...';
-  document.getElementById('format-rec-note').textContent = '';
-  ['excel', 'sql', 'python'].forEach(f => {
-    document.getElementById(`rec-${f}`).classList.remove('recommended');
-    document.getElementById(`badge-${f}`).style.display = 'none';
-  });
-  document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.format === 'excel'));
   document.getElementById('search-input').value = '';
   document.getElementById('table-wrap').innerHTML = '<div style="padding: 3rem; text-align: center; color: var(--text3); font-size: 13px;">Upload a CSV to preview your data here</div>';
   document.getElementById('history-track').innerHTML = '<div class="history-empty">No steps approved yet.</div>';
