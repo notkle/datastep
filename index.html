@@ -226,6 +226,22 @@
     margin-bottom: 1.25rem;
   }
 
+  .step-rationale ol {
+    list-style: decimal;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 0.5rem;
+  }
+
+  .step-rationale ol li {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+    padding-left: 2px;
+  }
+
   .step-code {
     background: var(--bg3);
     border: 1px solid var(--border);
@@ -1023,18 +1039,66 @@ async function callGemini(messages) {
   if (DEMO_MODE) {
     return await demoResponse(messages);
   }
-  const resp = await fetch(WORKER_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages })
-  });
-  if (!resp.ok) throw new Error('Worker HTTP error: ' + resp.status);
-  const data = await resp.json();
-  // New worker returns 200 even for Gemini errors — check for error field
-  if (data.error) {
-    throw new Error('Gemini: ' + (data.detail || data.error));
+
+  const retryDelays = [15, 30, 60]; // seconds to wait between retries
+  let attempt = 0;
+
+  while (true) {
+    const resp = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages })
+    });
+
+    if (!resp.ok) throw new Error('Worker HTTP error: ' + resp.status);
+
+    const data = await resp.json();
+
+    // Check for 503 specifically — server busy, retry with countdown
+    if (data.error && data.status === 503) {
+      if (attempt >= retryDelays.length) {
+        throw new Error('Servers remain busy after multiple retries. Please try again shortly.');
+      }
+      const waitSecs = retryDelays[attempt];
+      attempt++;
+      await countdownRetry(waitSecs);
+      continue;
+    }
+
+    if (data.error) {
+      throw new Error('Gemini: ' + (data.detail || data.error));
+    }
+
+    return data.text;
   }
-  return data.text;
+}
+
+function countdownRetry(seconds) {
+  return new Promise(resolve => {
+    let remaining = seconds;
+    const subEl = document.getElementById('analysis-sub');
+    const loadingEl = document.getElementById('step-loading-text');
+
+    const update = () => {
+      const msg = `Servers busy — retrying in ${remaining}s...`;
+      if (subEl) subEl.textContent = msg;
+      if (loadingEl) loadingEl.textContent = msg;
+    };
+
+    update();
+    const interval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(interval);
+        const ready = 'Retrying now...';
+        if (subEl) subEl.textContent = ready;
+        if (loadingEl) loadingEl.textContent = ready;
+        resolve();
+      } else {
+        update();
+      }
+    }, 1000);
+  });
 }
 
 // ─── JSON EXTRACTION ──────────────────────────────────────────────────────────
@@ -1210,11 +1274,11 @@ function showStep(step) {
 
   // Render rationale + numbered steps
   const rationaleEl = document.getElementById('step-rationale');
-  let rationaleHTML = `<p style="margin-bottom:0.75rem;">${escHtml(step.rationale)}</p>`;
+  let rationaleHTML = `<p style="margin-bottom:0.5rem;">${escHtml(step.rationale)}</p>`;
   if (step.steps && step.steps.length) {
-    rationaleHTML += `<ol style="padding-left:1.25rem;display:flex;flex-direction:column;gap:4px;">`;
+    rationaleHTML += `<ol>`;
     step.steps.forEach(s => {
-      rationaleHTML += `<li style="font-size:12px;color:var(--text2);line-height:1.5;">${escHtml(s)}</li>`;
+      rationaleHTML += `<li>${escHtml(s)}</li>`;
     });
     rationaleHTML += `</ol>`;
   }
@@ -1304,7 +1368,8 @@ function applyOperation(data, operation, changedCells, original) {
       }
     });
   } else {
-    // Generic fallback — highlight affected column so user sees what will change
+    // Generic fallback — only highlight cells that are clearly being targeted
+    // i.e. null/empty values in the affected column
     const targetCols = operation.columns === 'all' || operation.columns === 'all_string'
       ? state.headers
       : state.headers.filter(h => h === operation.columns || h.toLowerCase() === (operation.columns || '').toLowerCase());
@@ -1312,9 +1377,10 @@ function applyOperation(data, operation, changedCells, original) {
       data.forEach((row, ri) => {
         targetCols.forEach(h => {
           const val = row[h];
-          if (val !== null && val !== undefined && val !== '') {
+          // Only flag cells that are null/empty — these are the ones being changed
+          if (isTrueNull(val) || isBlank(val)) {
             if (!changedCells[ri]) changedCells[ri] = {};
-            changedCells[ri][h] = { was: val, now: val };
+            changedCells[ri][h] = { was: val, now: '(will change)' };
           }
         });
       });
@@ -1377,7 +1443,7 @@ async function approveStep() {
 
   document.getElementById('step-content').style.display = 'none';
   document.getElementById('step-loading').style.display = 'block';
-  document.getElementById('step-loading-text').textContent = `Step ${state.stepIndex} applied — analysing remaining issues...`;
+  document.getElementById('step-loading-text').textContent = `Step ${state.stepIndex} applied — analyzing remaining issues...`;
   document.getElementById('btn-approve').disabled = true;
   document.getElementById('btn-deny').disabled = true;
 
