@@ -637,12 +637,12 @@
 
 
   <!-- UPLOAD -->
-  <div id="upload-zone">
+  <label id="upload-zone" for="file-input">
     <input type="file" id="file-input" accept=".csv">
     <div class="upload-icon">↑</div>
     <div class="upload-title">Drop your CSV here</div>
     <p class="upload-sub">or click to browse &nbsp;·&nbsp; <strong>All processing is local</strong> — your data never leaves your browser</p>
-  </div>
+  </label>
 
   <!-- WORKSPACE -->
   <div id="workspace">
@@ -773,7 +773,6 @@ window.addEventListener('beforeunload', e => {
   }
 });
 
-uploadZone.addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
 uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
