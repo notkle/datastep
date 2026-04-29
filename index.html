@@ -839,19 +839,21 @@ const DEMO_MODE = false;
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let state = {
-  rawData: [],          // original parsed CSV rows
-  workingData: [],      // current in-memory data (mutated as steps apply)
+  rawData: [],
+  workingData: [],
   headers: [],
   fileName: '',
   format: 'excel',
   stepIndex: 0,
   history: [],          // [{title, code}]
-  currentStep: null,    // {title, rationale, code, operation}
-  changedCells: {},     // {rowIdx: {col: {was, now}}}
+  snapshots: [],        // [{workingData, headers, title}] — one per approved step
+  currentStep: null,
+  changedCells: {},
   page: 0,
   pageSize: 50,
   searchQuery: '',
-  conversationHistory: []
+  conversationHistory: [],
+  systemContext: null
 };
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
@@ -1238,6 +1240,10 @@ function showStep(step) {
   document.getElementById('step-loading').style.display = 'none';
   document.getElementById('step-done').style.display = 'none';
 
+  // Always re-enable buttons when a new step arrives
+  document.getElementById('btn-approve').disabled = false;
+  document.getElementById('btn-deny').disabled = false;
+
   document.getElementById('deny-box').classList.remove('visible');
   document.getElementById('deny-feedback').value = '';
 
@@ -1347,6 +1353,12 @@ async function approveStep() {
   document.getElementById('stat-rows').textContent = state.workingData.length.toLocaleString();
 
   state.history.push({ title: state.currentStep.title, code: state.currentStep.code });
+  // Save snapshot of data state after this step for backtracking
+  state.snapshots.push({
+    workingData: state.workingData.map(r => ({ ...r })),
+    headers: [...state.headers],
+    title: state.currentStep.title
+  });
   renderHistory();
 
   state.changedCells = {};
@@ -1434,7 +1446,15 @@ function renderTableData(data, showDiff) {
   const maxPage = Math.max(0, Math.ceil(total / state.pageSize) - 1);
   if (state.page > maxPage) state.page = maxPage;
 
-  const pageRows = filtered.slice(state.page * state.pageSize, (state.page + 1) * state.pageSize);
+  // Build index map for filtered rows back to original data indices
+  const filteredWithIdx = data.map((row, idx) => ({ row, idx }))
+    .filter(({ row }) => !state.searchQuery || state.headers.some(h => String(row[h] || '').toLowerCase().includes(state.searchQuery)));
+
+  const total = filteredWithIdx.length;
+  const maxPage = Math.max(0, Math.ceil(total / state.pageSize) - 1);
+  if (state.page > maxPage) state.page = maxPage;
+
+  const pageRows = filteredWithIdx.slice(state.page * state.pageSize, (state.page + 1) * state.pageSize);
 
   document.getElementById('page-info').textContent =
     `${(state.page * state.pageSize + 1).toLocaleString()}–${Math.min((state.page + 1) * state.pageSize, total).toLocaleString()} of ${total.toLocaleString()}`;
@@ -1442,18 +1462,15 @@ function renderTableData(data, showDiff) {
   document.getElementById('prev-page').disabled = state.page === 0;
   document.getElementById('next-page').disabled = state.page >= maxPage;
 
-  const globalStartIdx = state.page * state.pageSize;
-
   let html = '<table><thead><tr>';
   state.headers.forEach(h => { html += `<th>${h}</th>`; });
   html += '</tr></thead><tbody>';
 
-  pageRows.forEach((row, localIdx) => {
-    const globalIdx = filtered.indexOf(row);
-    const rowChanged = showDiff && state.changedCells[globalIdx];
+  pageRows.forEach(({ row, idx }) => {
+    const rowChanged = showDiff && state.changedCells[idx];
     html += `<tr${rowChanged ? ' class="changed"' : ''}>`;
     state.headers.forEach(h => {
-      const cellChange = showDiff && state.changedCells[globalIdx] && state.changedCells[globalIdx][h];
+      const cellChange = showDiff && state.changedCells[idx] && state.changedCells[idx][h];
       const val = row[h] !== undefined && row[h] !== null ? row[h] : '';
       if (cellChange) {
         html += `<td class="cell-changed" title="Was: ${escHtml(cellChange.was)}">${escHtml(cellChange.now || val)}</td>`;
@@ -1485,10 +1502,43 @@ function renderHistory() {
     el.innerHTML = '<div class="history-empty">No steps approved yet.</div>';
     return;
   }
-  el.innerHTML = state.history.map(h =>
-    `<div class="history-item"><div class="history-dot"></div><span>${escHtml(h.title)}</span></div>`
+  el.innerHTML = state.history.map((h, i) =>
+    `<div class="history-item">
+      <div class="history-dot"></div>
+      <span style="flex:1;">${escHtml(h.title)}</span>
+      <button onclick="revertToSnapshot(${i})" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;font-family:'DM Mono',monospace;flex-shrink:0;" title="Revert to after this step">↩</button>
+    </div>`
   ).join('');
   el.scrollTop = el.scrollHeight;
+}
+
+function revertToSnapshot(index) {
+  if (!confirm(`Revert to after step ${index + 1}: "${state.history[index].title}"? Steps after this will be lost.`)) return;
+  const snap = state.snapshots[index];
+  state.workingData = snap.workingData.map(r => ({ ...r }));
+  state.headers = [...snap.headers];
+  state.history = state.history.slice(0, index + 1);
+  state.snapshots = state.snapshots.slice(0, index + 1);
+  state.stepIndex = index + 1;
+  state.changedCells = {};
+  state.currentStep = null;
+  updateNullCount();
+  document.getElementById('stat-rows').textContent = state.workingData.length.toLocaleString();
+  document.getElementById('table-mode-label').textContent = 'Current data';
+  document.getElementById('diff-legend').style.display = 'none';
+  renderTable(false);
+  renderHistory();
+  // Reset step panel
+  document.getElementById('step-title').textContent = 'Reverted';
+  document.getElementById('step-rationale').textContent = `Dataset restored to after step ${index + 1}. Approve or deny the current step to continue, or upload a new file.`;
+  document.getElementById('step-code').style.display = 'none';
+  document.getElementById('step-actions').style.display = 'none';
+  document.getElementById('step-content').style.display = 'block';
+  document.getElementById('step-loading').style.display = 'none';
+  document.getElementById('step-done').style.display = 'none';
+  document.getElementById('step-counter').textContent = `step ${state.stepIndex}`;
+  document.getElementById('btn-approve').disabled = false;
+  document.getElementById('btn-deny').disabled = false;
 }
 
 // ─── EXPORT ───────────────────────────────────────────────────────────────────
@@ -1510,8 +1560,8 @@ function exportCSV() {
 // ─── RESET ────────────────────────────────────────────────────────────────────
 function resetAll() {
   state = { rawData: [], workingData: [], headers: [], fileName: '', format: 'excel',
-    stepIndex: 0, history: [], currentStep: null, changedCells: {}, page: 0, pageSize: 50,
-    searchQuery: '', conversationHistory: [] };
+    stepIndex: 0, history: [], snapshots: [], currentStep: null, changedCells: {}, page: 0, pageSize: 50,
+    searchQuery: '', conversationHistory: [], systemContext: null };
   demoStepIndex = 0;
   workspace.classList.remove('visible');
   uploadZone.classList.remove('hidden');
