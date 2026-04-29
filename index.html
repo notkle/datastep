@@ -1211,7 +1211,8 @@ async function analyzeDataset() {
 
 IMPORTANT: The user has chosen ${state.format.toUpperCase()} format. ALL code suggestions must be ${state.format.toUpperCase()} only. Do not suggest code in any other language.
 
-Step format: {"title":"max 8 words","rationale":"1-2 sentences","code":"exact ${state.format.toUpperCase()} code","operation":{"action":"action_type","columns":"column or all"},"done":false}
+Step format: {"title":"max 8 words","rationale":"1-2 sentences explaining the issue","steps":["Step 1 instruction","Step 2 instruction","Step 3 instruction"],"code":"exact ${state.format.toUpperCase()} code","operation":{"action":"action_type","columns":"column or all"},"done":false}
+The "steps" array should be 2-4 short, numbered action items the user should take. Be specific and concrete.
 When finished: {"done":true,"summary":"brief summary"}
 Priority: whitespace → nulls → duplicates → type issues → formatting → structure.`;
 
@@ -1242,7 +1243,19 @@ function showStep(step) {
 
   document.getElementById('step-counter').textContent = `step ${state.stepIndex}`;
   document.getElementById('step-title').textContent = step.title;
-  document.getElementById('step-rationale').textContent = step.rationale;
+
+  // Render rationale + numbered steps
+  const rationaleEl = document.getElementById('step-rationale');
+  let rationaleHTML = `<p style="margin-bottom:0.75rem;">${escHtml(step.rationale)}</p>`;
+  if (step.steps && step.steps.length) {
+    rationaleHTML += `<ol style="padding-left:1.25rem;display:flex;flex-direction:column;gap:4px;">`;
+    step.steps.forEach(s => {
+      rationaleHTML += `<li style="font-size:12px;color:var(--text2);line-height:1.5;">${escHtml(s)}</li>`;
+    });
+    rationaleHTML += `</ol>`;
+  }
+  rationaleEl.innerHTML = rationaleHTML;
+
   document.getElementById('step-code').textContent = step.code;
   document.getElementById('step-code').style.display = 'block';
   document.getElementById('step-actions').style.display = 'flex';
@@ -1250,14 +1263,12 @@ function showStep(step) {
   document.getElementById('step-loading').style.display = 'none';
   document.getElementById('step-done').style.display = 'none';
 
-  // Always re-enable buttons when a new step arrives
   document.getElementById('btn-approve').disabled = false;
   document.getElementById('btn-deny').disabled = false;
 
   document.getElementById('deny-box').classList.remove('visible');
   document.getElementById('deny-feedback').value = '';
 
-  // Preview: apply operation to a copy and show diff
   showPreview(step.operation);
 }
 
