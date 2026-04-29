@@ -521,7 +521,21 @@
         <div class="data-panel-header">
           <div class="data-panel-title" id="table-mode-label">Dataset preview</div>
           <div class="diff-legend" id="diff-legend" style="display:none;">
-            <span><span class="legend-dot" style="background:rgba(200,240,106,0.5);"></span>affected</span>
+            <button id="affected-toggle" onclick="toggleAffectedFilter()" style="
+              background:rgba(200,240,106,0.12);
+              border:1px solid rgba(200,240,106,0.3);
+              border-radius:4px;
+              padding:2px 8px;
+              font-size:11px;
+              color:var(--accent);
+              cursor:pointer;
+              font-family:'DM Mono',monospace;
+              transition:all 0.15s;
+              display:flex;align-items:center;gap:5px;
+            ">
+              <span style="width:8px;height:8px;border-radius:2px;background:rgba(200,240,106,0.5);display:inline-block;"></span>
+              <span id="affected-toggle-label">show affected only</span>
+            </button>
           </div>
         </div>
         <div class="search-bar">
@@ -555,6 +569,7 @@ let state = {
   stepIndex: 0,
   visited: new Set(),
   changedCells: {},
+  affectedFilterActive: false,
   page: 0,
   pageSize: 50,
   searchQuery: '',
@@ -1233,9 +1248,13 @@ function navigateStep(dir) {
   const next = state.stepIndex + dir;
   if (next < 0 || next >= state.steps.length) return;
   state.changedCells = {};
+  state.affectedFilterActive = false;
+  const toggleLabel = document.getElementById('affected-toggle-label');
+  const toggleBtn = document.getElementById('affected-toggle');
+  if (toggleLabel) toggleLabel.textContent = 'show affected only';
+  if (toggleBtn) { toggleBtn.style.background = 'rgba(200,240,106,0.12)'; toggleBtn.style.borderColor = 'rgba(200,240,106,0.3)'; }
   document.getElementById('table-mode-label').textContent = 'Dataset preview';
   document.getElementById('diff-legend').style.display = 'none';
-  // Track visited
   if (!state.visited) state.visited = new Set();
   state.visited.add(state.stepIndex);
   showStep(next);
@@ -1286,10 +1305,35 @@ function renderHistory() {
   el.scrollTop = el.scrollHeight;
 }
 
+function toggleAffectedFilter() {
+  state.affectedFilterActive = !state.affectedFilterActive;
+  state.page = 0;
+  const label = document.getElementById('affected-toggle-label');
+  const btn = document.getElementById('affected-toggle');
+  if (state.affectedFilterActive) {
+    label.textContent = 'show all rows';
+    btn.style.background = 'rgba(200,240,106,0.25)';
+    btn.style.borderColor = 'rgba(200,240,106,0.6)';
+  } else {
+    label.textContent = 'show affected only';
+    btn.style.background = 'rgba(200,240,106,0.12)';
+    btn.style.borderColor = 'rgba(200,240,106,0.3)';
+  }
+  renderTable();
+}
+
 // ─── TABLE RENDER ─────────────────────────────────────────────────────────────
 function getFilteredRows() {
-  if (!state.searchQuery) return state.workingData;
-  return state.workingData.filter(row =>
+  let rows = state.workingData;
+
+  // Filter to affected rows only if toggle is active
+  if (state.affectedFilterActive && Object.keys(state.changedCells).length > 0) {
+    const affectedIdxs = new Set(Object.keys(state.changedCells).map(Number));
+    rows = rows.filter((_, i) => affectedIdxs.has(i));
+  }
+
+  if (!state.searchQuery) return rows;
+  return rows.filter(row =>
     state.headers.some(h => String(row[h] || '').toLowerCase().includes(state.searchQuery))
   );
 }
