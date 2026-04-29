@@ -1089,14 +1089,17 @@ function computeStats() {
 }
 
 // ─── GEMINI API ───────────────────────────────────────────────────────────────
-async function callGemini(messages, retries = 3) {
+async function callGemini(messages, retries = 4) {
   if (DEMO_MODE) {
     return await demoResponse(messages);
   }
+  const backoffs = [0, 5000, 15000, 30000]; // 0s, 5s, 15s, 30s
   for (let attempt = 0; attempt < retries; attempt++) {
-    if (attempt > 0) {
-      // Exponential backoff: 2s, 4s
-      await new Promise(r => setTimeout(r, 2000 * attempt));
+    if (backoffs[attempt] > 0) {
+      const secs = backoffs[attempt] / 1000;
+      document.getElementById('analysis-sub').textContent = `Rate limit hit — retrying in ${secs}s...`;
+      await new Promise(r => setTimeout(r, backoffs[attempt]));
+      document.getElementById('analysis-sub').textContent = 'Computing statistics across all rows';
     }
     const resp = await fetch(WORKER_URL, {
       method: 'POST',
@@ -1104,8 +1107,8 @@ async function callGemini(messages, retries = 3) {
       body: JSON.stringify({ messages })
     });
     if (resp.status === 429) {
-      if (attempt === retries - 1) throw new Error('Rate limited after retries');
-      continue; // retry
+      if (attempt === retries - 1) throw new Error('Rate limited — please wait a minute and try again.');
+      continue;
     }
     if (!resp.ok) throw new Error('Worker error: ' + resp.status);
     const data = await resp.json();
@@ -1185,46 +1188,46 @@ async function analyzeDataset() {
   document.getElementById('analysis-overlay').classList.add('visible');
 
   const stats = computeStats();
-  const statsText = JSON.stringify(stats, null, 2);
 
-  const systemPrompt = `You are DataStep, a precise data cleaning assistant. 
-You analyse datasets and suggest ONE cleaning step at a time.
-Always respond with valid JSON only — no markdown, no explanation outside the JSON.
+  // Slim payload — only what Gemini actually needs, no pretty-print
+  const slimStats = {};
+  state.headers.forEach(h => {
+    const s = stats[h];
+    slimStats[h] = {
+      nulls: s.nullCount,
+      blanks: s.blankCount,
+      unique: s.uniqueCount,
+      total: s.totalCount,
+      numeric: s.isNumeric,
+      sample: s.sample.slice(0, 3),
+      top: s.topValues.slice(0, 3),
+      ...(s.isNumeric ? { min: s.min, max: s.max, mean: s.mean ? +s.mean.toFixed(2) : null } : {})
+    };
+  });
 
-Response format:
-{
-  "title": "Short action title (max 8 words)",
-  "rationale": "1-2 sentences explaining why this step is needed and what it fixes.",
-  "code": "The exact ${state.format.toUpperCase()} code or formula to perform this operation",
-  "operation": { "action": "action_type", "columns": "column_name or 'all'" },
-  "done": false
-}
+  const systemMsg = `You are DataStep, a data cleaning assistant. Suggest ONE cleaning step at a time. Respond with valid JSON only — no markdown.
 
-When all cleaning is complete, respond with:
-{ "done": true, "summary": "Brief summary of what was cleaned." }
+Step format: {"title":"max 8 words","rationale":"1-2 sentences","code":"exact ${state.format.toUpperCase()} code","operation":{"action":"action_type","columns":"column or all"},"done":false}
+When finished: {"done":true,"summary":"brief summary"}
+Priority: whitespace → nulls → duplicates → type issues → formatting → structure.`;
 
-Be specific. Prioritise: whitespace issues, null handling, duplicates, type inconsistencies, formatting, then structural issues.
-The format requested is: ${state.format.toUpperCase()}`;
-
-  const userMsg = `Dataset: ${state.fileName}
-Rows: ${state.workingData.length}, Columns: ${state.headers.length}
+  const userMsg = `Dataset: ${state.fileName} | Rows: ${state.workingData.length} | Cols: ${state.headers.length}
 Headers: ${state.headers.join(', ')}
+Stats: ${JSON.stringify(slimStats)}
+Suggest the first cleaning step.`;
 
-Column statistics:
-${statsText}
-
-Please suggest the first cleaning step.`;
-
+  // Store system context separately — only sent once, not repeated in history
+  state.systemContext = systemMsg;
   state.conversationHistory = [{ role: 'user', content: userMsg }];
 
   try {
-    const response = await callGemini(state.conversationHistory);
+    const response = await callGemini(state.conversationHistory, 3, state.systemContext);
     const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
     document.getElementById('analysis-overlay').classList.remove('visible');
     if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
   } catch (e) {
     document.getElementById('analysis-overlay').classList.remove('visible');
-    showError('Failed to analyse dataset. Check your worker URL or enable demo mode.');
+    showError(e.message.includes('Rate limited') ? 'Rate limit reached — wait 60 seconds and try again.' : 'Failed to analyse dataset. Check your worker URL.');
   }
 }
 
@@ -1368,7 +1371,7 @@ async function approveStep() {
   document.getElementById('btn-deny').disabled = true;
 
   try {
-    const response = await callGemini(state.conversationHistory);
+    const response = await callGemini(state.conversationHistory, 3, state.systemContext);
     const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
     if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
   } catch (e) { showError('Failed to get next step.'); }
@@ -1391,7 +1394,7 @@ async function denyStep() {
   state.conversationHistory.push({ role: 'user', content: `DENY. Feedback: ${feedback}. Please re-evaluate and suggest a revised approach for this step.` });
 
   try {
-    const response = await callGemini(state.conversationHistory);
+    const response = await callGemini(state.conversationHistory, 3, state.systemContext);
     const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
     state.stepIndex--;
     if (parsed.done) { showDone(parsed.summary); } else { showStep(parsed); }
