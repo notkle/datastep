@@ -501,9 +501,8 @@
     transform:scale(0.96);opacity:0;
     transition:transform 0.2s ease, opacity 0.2s ease;
   ">
-    <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="font-size:12px;font-family:'DM Mono',monospace;letter-spacing:0.06em;color:var(--text3);text-transform:uppercase;" id="expand-mode-label">Dataset preview</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;padding:1rem 1.5rem;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:10px;">
         <button id="expand-affected-toggle" onclick="toggleAffectedFilter(true)" style="
           display:none;
           background:rgba(200,240,106,0.12);
@@ -656,12 +655,18 @@
       <!-- RIGHT: DATA TABLE + LOG -->
       <div style="display:flex;flex-direction:column;gap:1rem;">
         <div class="data-panel">
-        <div class="data-panel-header">
-          <div class="data-panel-title" id="table-mode-label">Dataset preview</div>
+        <div class="data-panel-header" style="justify-content:flex-end;">
           <div style="display:flex;align-items:center;gap:10px;">
 
             <!-- KEY COLUMN DROPDOWNS -->
             <div id="key-col-dropdown-wrap" style="display:none;display:flex;gap:6px;align-items:center;">
+
+              <!-- KEY DUP NOTIFICATION -->
+              <div id="key-dup-notify" style="display:none;
+                background:rgba(240,106,106,0.12);border:1px solid rgba(240,106,106,0.3);
+                border-radius:4px;padding:2px 10px;font-size:11px;color:var(--red);
+                font-family:'DM Mono',monospace;white-space:nowrap;
+              "></div>
 
               <!-- LEFT: Mark key columns -->
               <div style="position:relative;">
@@ -1925,7 +1930,7 @@ function highlightStep(step) {
     });
   }
 
-  document.getElementById('table-mode-label').textContent = 'Affected cells highlighted';
+  
   updateDiffLegend();
   renderTable();
 }
@@ -1956,7 +1961,7 @@ function navigateStep(dir) {
   if (next < 0 || next >= state.steps.length) return;
   state.changedCells = {};
   state.affectedFilterActive = false;
-  document.getElementById('table-mode-label').textContent = 'Dataset preview';
+  
   updateDiffLegend();
   if (!state.visited) state.visited = new Set();
   state.visited.add(state.stepIndex);
@@ -1980,7 +1985,7 @@ function showDone() {
     `${state.history.filter(h => !h.skipped).length} of ${state.steps.length} issues addressed.`;
   state.changedCells = {};
   updateDiffLegend();
-  document.getElementById('table-mode-label').textContent = 'Dataset preview';
+  
   renderTable();
 }
 
@@ -2184,6 +2189,7 @@ function resetAll() {
   document.getElementById('mode-tabs').style.display = 'none';
   document.getElementById('clean-view').style.display = '';
   document.getElementById('analysis-view').style.display = 'none';
+  document.getElementById('key-dup-notify').style.display = 'none';
   document.getElementById('key-col-dropdown-wrap').style.display = 'none';
   document.getElementById('key-dup-inline-result').textContent = '';
   document.getElementById('key-mark-label').textContent = 'keys';
@@ -2212,7 +2218,7 @@ function resetAll() {
   document.getElementById('step-done').style.display = 'none';
   
   document.getElementById('diff-legend').style.display = 'none';
-  document.getElementById('table-mode-label').textContent = 'Dataset preview';
+  
 }
 
 // ─── EXPORT REPORT ────────────────────────────────────────────────────────────
@@ -3592,6 +3598,26 @@ function runKeyColDupCheck() {
   const checkCols = [...document.querySelectorAll('[data-checkkey]:checked')].map(cb => cb.dataset.checkkey);
   const allCols = [...state._markedKeys, ...checkCols];
 
+  // Always check keys alone for duplicates and show notification
+  const notify = document.getElementById('key-dup-notify');
+  if (state._markedKeys.size > 0) {
+    const keySeen = new Map();
+    let keyDupCount = 0;
+    state.workingData.forEach((row, i) => {
+      const k = [...state._markedKeys].map(h => row[h]).join('|||');
+      if (keySeen.has(k)) keyDupCount++;
+      else keySeen.set(k, i);
+    });
+    if (keyDupCount > 0) {
+      notify.textContent = `⚠ ${keyDupCount.toLocaleString()} duplicate key${keyDupCount > 1 ? 's' : ''}`;
+      notify.style.display = 'block';
+    } else {
+      notify.style.display = 'none';
+    }
+  } else {
+    notify.style.display = 'none';
+  }
+
   // Update check button label
   const checkLabel = document.getElementById('key-check-label');
   checkLabel.textContent = checkCols.length > 0 ? `${checkCols.length} extra` : 'check cols';
@@ -3603,7 +3629,7 @@ function runKeyColDupCheck() {
   // Nothing to check if no keys marked and no check cols
   if (allCols.length === 0) {
     result.textContent = '';
-    document.getElementById('table-mode-label').textContent = 'Dataset preview';
+    
     updateDiffLegend();
     renderTable();
     return;
@@ -3612,7 +3638,7 @@ function runKeyColDupCheck() {
   // If only keys marked but no check cols — just highlight key columns, no dup check
   if (state._markedKeys.size > 0 && checkCols.length === 0) {
     result.textContent = '';
-    document.getElementById('table-mode-label').textContent = 'Dataset preview';
+    
     updateDiffLegend();
     renderTable();
     return;
@@ -3635,11 +3661,11 @@ function runKeyColDupCheck() {
 
   if (state._keyDupRows.size === 0) {
     result.innerHTML = `<span style="color:var(--accent);">✓ No duplicates</span>`;
-    document.getElementById('table-mode-label').textContent = 'Dataset preview';
+    
   } else {
     const pct = ((state._keyDupRows.size / state.workingData.length) * 100).toFixed(1);
     result.innerHTML = `<span style="color:var(--red);">⚠ ${state._keyDupRows.size.toLocaleString()} rows (${pct}%)</span>`;
-    document.getElementById('table-mode-label').textContent = 'Duplicate key rows highlighted';
+    
   }
 
   updateDiffLegend();
@@ -3712,8 +3738,6 @@ function toggleExpand() {
     expandPage = 0;
     expandSearch = '';
     document.getElementById('expand-search').value = '';
-    document.getElementById('expand-mode-label').textContent =
-      document.getElementById('table-mode-label').textContent;
     syncAffectedToggleUI();
 
     // Populate step context strip
