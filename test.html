@@ -1171,8 +1171,8 @@ function computeStats() {
       missingCount: nullCount + blankCount,
       pct: n => ((n / vals.length) * 100).toFixed(1),
       isNumeric: numeric.length > nonMissing.length * 0.7,
-      min: numeric.length ? Math.min(...numeric) : null,
-      max: numeric.length ? Math.max(...numeric) : null,
+      min: numeric.length ? numeric.reduce((a, b) => a < b ? a : b) : null,
+      max: numeric.length ? numeric.reduce((a, b) => a > b ? a : b) : null,
       mean: numeric.length ? +(numeric.reduce((a, b) => a + b, 0) / numeric.length).toFixed(2) : null,
       hasWhitespace, whitespaceExamples,
       looksLikeDate, hasMixedDateFormats, dateSamples,
@@ -2655,31 +2655,33 @@ function buildCorrelationMatrix(stats) {
   if (numCols.length < 2) { section.style.display = 'none'; return; }
   section.style.display = 'block';
 
-  // Pre-extract numeric column arrays — sampled for performance
-  const step = Math.max(1, Math.floor(state.workingData.length / 1000));
-  const sampleData = state.workingData.filter((_, i) => i % step === 0);
+  // Pre-extract full column arrays as Float64 for speed
   const colArrays = {};
   numCols.forEach(h => {
-    colArrays[h] = sampleData.map(r => parseFloat(r[h]));
+    colArrays[h] = new Float64Array(state.workingData.length);
+    state.workingData.forEach((r, i) => {
+      colArrays[h][i] = parseFloat(r[h]);
+    });
   });
+
+  // Single-pass Pearson r per pair — no intermediate arrays
+  function pearson(a, b) {
+    let n = 0, sa = 0, sb = 0, sab = 0, sa2 = 0, sb2 = 0;
+    for (let i = 0; i < a.length; i++) {
+      const va = a[i], vb = b[i];
+      if (isNaN(va) || isNaN(vb)) continue;
+      n++; sa += va; sb += vb; sab += va * vb; sa2 += va * va; sb2 += vb * vb;
+    }
+    if (n < 5) return 0;
+    const num = n * sab - sa * sb;
+    const den = Math.sqrt((n * sa2 - sa * sa) * (n * sb2 - sb * sb));
+    return den ? +(num / den).toFixed(2) : 0;
+  }
 
   const matrix = {};
   numCols.forEach(a => {
     matrix[a] = {};
-    numCols.forEach(b => {
-      const pairs = colArrays[a]
-        .map((va, i) => [va, colArrays[b][i]])
-        .filter(([va, vb]) => !isNaN(va) && !isNaN(vb));
-      if (pairs.length < 5) { matrix[a][b] = 0; return; }
-      const mx = pairs.reduce((s, [v]) => s + v, 0) / pairs.length;
-      const my = pairs.reduce((s, [, v]) => s + v, 0) / pairs.length;
-      const num = pairs.reduce((s, [va, vb]) => s + (va - mx) * (vb - my), 0);
-      const den = Math.sqrt(
-        pairs.reduce((s, [va]) => s + (va - mx) ** 2, 0) *
-        pairs.reduce((s, [, vb]) => s + (vb - my) ** 2, 0)
-      );
-      matrix[a][b] = den ? +(num / den).toFixed(2) : 0;
-    });
+    numCols.forEach(b => { matrix[a][b] = pearson(colArrays[a], colArrays[b]); });
   });
 
   // Render as HTML table heatmap
@@ -2829,24 +2831,29 @@ function buildShapeSummary(stats) {
     if (entropy < lowestEntropy) { lowestEntropy = entropy; mostImbalanced = h; }
   });
 
-  // Strongest correlation — sampled for performance
+  // Strongest correlation — single-pass algorithm on full dataset
   let strongestCorr = null;
   if (numCols.length >= 2) {
-    const step = Math.max(1, Math.floor(state.workingData.length / 500));
-    const sample = state.workingData.filter((_, i) => i % step === 0);
+    // Pre-extract full arrays once
+    const arrays = {};
+    numCols.forEach(h => {
+      arrays[h] = new Float64Array(state.workingData.length);
+      state.workingData.forEach((r, i) => { arrays[h][i] = parseFloat(r[h]); });
+    });
     let maxR = 0;
     for (let i = 0; i < numCols.length; i++) {
       for (let j = i + 1; j < numCols.length; j++) {
-        const pairs = sample
-          .map(r => [parseFloat(r[numCols[i]]), parseFloat(r[numCols[j]])])
-          .filter(([a, b]) => !isNaN(a) && !isNaN(b));
-        if (pairs.length < 10) continue;
-        const mx = pairs.reduce((s, [v]) => s + v, 0) / pairs.length;
-        const my = pairs.reduce((s, [, v]) => s + v, 0) / pairs.length;
-        const num = pairs.reduce((s, [a, b]) => s + (a - mx) * (b - my), 0);
-        const den = Math.sqrt(pairs.reduce((s, [a]) => s + (a - mx) ** 2, 0) * pairs.reduce((s, [, b]) => s + (b - my) ** 2, 0));
-        const r = den ? Math.abs(num / den) : 0;
-        if (r > maxR) { maxR = r; strongestCorr = { a: numCols[i], b: numCols[j], r: den ? +(num / den).toFixed(2) : 0 }; }
+        const a = arrays[numCols[i]], b = arrays[numCols[j]];
+        let n=0, sa=0, sb=0, sab=0, sa2=0, sb2=0;
+        for (let k = 0; k < a.length; k++) {
+          if (isNaN(a[k]) || isNaN(b[k])) continue;
+          n++; sa+=a[k]; sb+=b[k]; sab+=a[k]*b[k]; sa2+=a[k]*a[k]; sb2+=b[k]*b[k];
+        }
+        if (n < 10) continue;
+        const num = n*sab - sa*sb;
+        const den = Math.sqrt((n*sa2 - sa*sa) * (n*sb2 - sb*sb));
+        const r = den ? Math.abs(num/den) : 0;
+        if (r > maxR) { maxR = r; strongestCorr = { a: numCols[i], b: numCols[j], r: den ? +(num/den).toFixed(2) : 0 }; }
       }
     }
   }
@@ -3113,9 +3120,7 @@ function buildAnalysis() {
   primary.innerHTML = '';
   secondary.innerHTML = '';
 
-  console.log('Step 1: computeStats');
   const stats = computeStats();
-  console.log('Step 2: keyColBoxes');
   // Build key column checkboxes
   const keyColSection = document.getElementById('analysis-keydup');
   const keyColBoxes = document.getElementById('key-col-checkboxes');
@@ -3128,23 +3133,14 @@ function buildAnalysis() {
     </label>
   `).join('');
 
-  console.log('Step 3: buildStatsTable');
   buildStatsTable(stats);
-  console.log('Step 4: buildConsistencyChecks');
   buildConsistencyChecks(stats);
-  console.log('Step 5: buildCardinalityClassifier');
   buildCardinalityClassifier(stats);
-  console.log('Step 6: buildCorrelationMatrix');
   buildCorrelationMatrix(stats);
-  console.log('Step 7: initCrosstab');
   initCrosstab(stats);
-  console.log('Step 8: buildShapeSummary');
   buildShapeSummary(stats);
-  console.log('Step 9: buildDatePatterns');
   buildDatePatterns(stats);
-  console.log('Step 10: buildStringPatterns');
   buildStringPatterns(stats);
-  console.log('Step 11: initRangeValidator');
   initRangeValidator(stats);
   const ACCENT = '#c8f06a';
   const AMBER = '#f0b86a';
@@ -3152,7 +3148,6 @@ function buildAnalysis() {
   const BLUE = '#6ab4f0';
   const GRID_COLOR = 'rgba(255,255,255,0.06)';
   const TEXT_COLOR = '#9e9d96';
-  console.log('Step 12: primary charts start');
   const numericCols = state.headers.filter(h => stats.columns[h].isNumeric);
   const dateCols = state.headers.filter(h => stats.columns[h].looksLikeDate);
 
@@ -3204,16 +3199,11 @@ function buildAnalysis() {
     return canvas;
   }
 
-  // Shared sample — cap at 2000 rows for all chart computations
-  const SAMPLE_SIZE = 2000;
-  const sampleStep = Math.max(1, Math.floor(state.workingData.length / SAMPLE_SIZE));
-  const chartSample = state.workingData.filter((_, i) => i % sampleStep === 0);
-
   // ── PRIMARY 1: Value distribution for each categorical column ──
   state.headers.forEach(h => {
     const s = stats.columns[h];
     if (s.isNumeric || s.uniqueCount > 20) return;
-    const vals = chartSample.map(r => r[h]).filter(v => !isEffectivelyMissing(v));
+    const vals = state.workingData.map(r => r[h]).filter(v => !isEffectivelyMissing(v));
     const freq = {};
     vals.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
     const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 12);
@@ -3254,9 +3244,10 @@ function buildAnalysis() {
   state.headers.forEach(h => {
     const s = stats.columns[h];
     if (!s.isNumeric) return;
-    const vals = chartSample.map(r => parseFloat(r[h])).filter(v => !isNaN(v));
+    const vals = state.workingData.map(r => parseFloat(r[h])).filter(v => !isNaN(v));
     if (vals.length < 5) return;
-    const min = Math.min(...vals), max = Math.max(...vals);
+    const min = vals.reduce((a, b) => a < b ? a : b);
+    const max = vals.reduce((a, b) => a > b ? a : b);
     if (max === min) return;
     const bins = Math.min(Math.max(Math.ceil(Math.log2(vals.length) + 1), 5), 40);
     const binSize = (max - min) / bins;
@@ -3431,11 +3422,10 @@ function buildAnalysis() {
     }
   }
 
-  console.log('Step 13: secondary charts start');
   // ── BOX PLOTS: one per numeric column ──
   numericCols.forEach(h => {
     const s = stats.columns[h];
-    const vals = chartSample.map(r => parseFloat(r[h])).filter(v => !isNaN(v)).sort((a, b) => a - b);
+    const vals = state.workingData.map(r => parseFloat(r[h])).filter(v => !isNaN(v)).sort((a, b) => a - b);
     if (vals.length < 5) return;
     const q1 = vals[Math.floor(vals.length * 0.25)];
     const median = vals[Math.floor(vals.length * 0.5)];
@@ -3486,7 +3476,7 @@ function buildAnalysis() {
   // ── PARETO / CUMULATIVE DISTRIBUTION: per numeric column ──
   numericCols.forEach(h => {
     const s = stats.columns[h];
-    const vals = chartSample.map(r => parseFloat(r[h])).filter(v => !isNaN(v));
+    const vals = state.workingData.map(r => parseFloat(r[h])).filter(v => !isNaN(v));
     if (vals.length < 10 || s.min < 0) return; // skip negative values — pareto doesn't make sense
     const total = vals.reduce((a, b) => a + b, 0);
     if (total === 0) return;
@@ -3577,7 +3567,7 @@ function buildAnalysis() {
   // ── SECONDARY 2: Scatter or heatmap depending on column cardinality ──
   if (numericCols.length >= 2) {
     const col1 = numericCols[0], col2 = numericCols[1];
-    const allPairs = chartSample
+    const allPairs = state.workingData
       .map(r => ({ x: parseFloat(r[col1]), y: parseFloat(r[col2]) }))
       .filter(p => !isNaN(p.x) && !isNaN(p.y));
     const pairs = allPairs.slice(0, 500);
@@ -3666,7 +3656,7 @@ function buildAnalysis() {
   numericCols.forEach(h => {
     const s = stats.columns[h];
     if (!s.outlierCount || s.outlierCount === 0) return;
-    const allVals = chartSample.map(r => parseFloat(r[h])).filter(v => !isNaN(v));
+    const allVals = state.workingData.map(r => parseFloat(r[h])).filter(v => !isNaN(v));
     const mean = s.mean;
     const std = Math.sqrt(allVals.reduce((a, b) => a + (b - mean) ** 2, 0) / allVals.length);
     const outlierVals = allVals.filter(v => Math.abs(v - mean) > 3 * std);
