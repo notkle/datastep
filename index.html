@@ -696,9 +696,9 @@
                   background:var(--bg3);border:1px solid var(--border2);border-radius:6px;
                   padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer;
                   font-family:'DM Mono',monospace;transition:all 0.15s;white-space:nowrap;
-                  display:flex;align-items:center;gap:5px;
+                  display:flex;align-items:center;gap:5px;width:76px;justify-content:space-between;
                 " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="if(!state._keyCheckOpen){this.style.borderColor='var(--border2)';this.style.color='var(--text2)'}">
-                  <span id="key-check-label">check cols</span>
+                  <span id="key-check-label">cols</span>
                   <span style="font-size:9px;opacity:0.5;">▾</span>
                 </button>
                 <div id="key-check-menu" style="
@@ -2193,7 +2193,7 @@ function resetAll() {
   document.getElementById('key-col-dropdown-wrap').style.display = 'none';
   document.getElementById('key-dup-inline-result').textContent = '';
   document.getElementById('key-mark-label').textContent = 'keys';
-  document.getElementById('key-check-label').textContent = 'check cols';
+  document.getElementById('key-check-label').textContent = 'cols';
   state._keyDupRows = new Set();
   state._keyDupCols = new Set();
   state._markedKeys = new Set();
@@ -3620,7 +3620,7 @@ function runKeyColDupCheck() {
 
   // Update check button label
   const checkLabel = document.getElementById('key-check-label');
-  checkLabel.textContent = checkCols.length > 0 ? `${checkCols.length} extra` : 'check cols';
+  checkLabel.textContent = checkCols.length > 0 ? `${checkCols.length} col${checkCols.length > 1 ? 's' : ''}` : 'cols';
 
   const result = document.getElementById('key-dup-inline-result');
 
