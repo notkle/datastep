@@ -659,6 +659,59 @@
         <div class="data-panel-header">
           <div class="data-panel-title" id="table-mode-label">Dataset preview</div>
           <div style="display:flex;align-items:center;gap:10px;">
+
+            <!-- KEY COLUMN DROPDOWNS -->
+            <div id="key-col-dropdown-wrap" style="display:none;display:flex;gap:6px;align-items:center;">
+
+              <!-- LEFT: Mark key columns -->
+              <div style="position:relative;">
+                <button id="key-mark-btn" onclick="toggleKeyMarkDropdown()" style="
+                  background:var(--bg3);border:1px solid var(--border2);border-radius:6px;
+                  padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer;
+                  font-family:'DM Mono',monospace;transition:all 0.15s;white-space:nowrap;
+                  display:flex;align-items:center;gap:5px;width:72px;justify-content:space-between;
+                " onmouseover="this.style.borderColor='var(--text2)'" onmouseout="if(!state._keyMarkOpen)this.style.borderColor='var(--border2)'">
+                  <span id="key-mark-label">keys</span>
+                  <span style="font-size:9px;opacity:0.5;">▾</span>
+                </button>
+                <div id="key-mark-menu" style="
+                  display:none;position:absolute;top:calc(100% + 6px);left:0;
+                  background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);
+                  padding:0.5rem;min-width:170px;z-index:200;
+                  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+                ">
+                  <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:6px;padding:0 4px;">Identifier columns</div>
+                  <div id="key-mark-list" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;"></div>
+                </div>
+              </div>
+
+              <!-- RIGHT: Check columns -->
+              <div style="position:relative;">
+                <button id="key-check-btn" onclick="toggleKeyCheckDropdown()" style="
+                  background:var(--bg3);border:1px solid var(--border2);border-radius:6px;
+                  padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer;
+                  font-family:'DM Mono',monospace;transition:all 0.15s;white-space:nowrap;
+                  display:flex;align-items:center;gap:5px;
+                " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="if(!state._keyCheckOpen){this.style.borderColor='var(--border2)';this.style.color='var(--text2)'}">
+                  <span id="key-check-label">check cols</span>
+                  <span style="font-size:9px;opacity:0.5;">▾</span>
+                </button>
+                <div id="key-check-menu" style="
+                  display:none;position:absolute;top:calc(100% + 6px);right:0;
+                  background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);
+                  padding:0.5rem;min-width:170px;z-index:200;
+                  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+                ">
+                  <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:6px;padding:0 4px;">Additional columns</div>
+                  <div id="key-check-list" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;"></div>
+                  <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;">
+                    <div id="key-dup-inline-result" style="font-size:11px;font-family:'DM Mono',monospace;min-height:16px;"></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
             <div class="diff-legend" id="diff-legend" style="display:none;">
               <button id="affected-toggle" onclick="toggleAffectedFilter()" style="
                 background:rgba(200,240,106,0.12);
@@ -737,18 +790,6 @@
       <!-- SHAPE SUMMARY -->
       <div id="analysis-shape" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:2rem;line-height:1.8;font-size:13px;color:var(--text2);display:none;"></div>
 
-      <!-- NUMERIC RANGE VALIDATOR -->
-      <div id="analysis-rangecheck" style="margin-bottom:2rem;display:none;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap;">
-          <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);">Range Validator</div>
-          <select id="range-col" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;outline:none;cursor:pointer;"></select>
-          <input id="range-min" type="number" placeholder="Min" style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;outline:none;">
-          <input id="range-max" type="number" placeholder="Max" style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;outline:none;">
-          <button onclick="runRangeCheck()" style="padding:5px 14px;background:var(--accent);color:#0e0e0f;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;">Check</button>
-        </div>
-        <div id="range-result"></div>
-      </div>
-
       <!-- DATE PATTERN ANALYSIS -->
       <div id="analysis-datepatterns" style="margin-bottom:2rem;display:none;">
         <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Date Patterns</div>
@@ -797,20 +838,6 @@
             </table>
           </div>
         </div>
-      </div>
-
-      <div id="analysis-keydup" style="margin-bottom:2rem;display:none;">
-        <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:0.75rem;">Key Column Duplicate Check</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap;">
-          <span style="font-size:12px;color:var(--text2);">Check duplicates on:</span>
-          <div id="key-col-checkboxes" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-          <button onclick="runKeyDupCheck()" style="
-            padding:5px 14px;background:var(--accent);color:#0e0e0f;border:none;
-            border-radius:6px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;">
-            Check
-          </button>
-        </div>
-        <div id="key-dup-result"></div>
       </div>
 
       <div id="analysis-consistency" style="margin-bottom:2rem;display:none;">
@@ -867,6 +894,11 @@ let state = {
   sortCol: null,
   sortDir: null,
   _measuring: false,
+  _keyDupRows: new Set(),
+  _keyDupCols: new Set(),
+  _markedKeys: new Set(),
+  _keyMarkOpen: false,
+  _keyCheckOpen: false,
   page: 0,
   pageSize: 50,
   searchQuery: '',
@@ -1004,6 +1036,7 @@ function parseCSV(text) {
   renderTable();
 
   document.getElementById('format-overlay').classList.add('visible');
+  initKeyColDropdown();
 }
 
 // ─── EXCEL PARSER ─────────────────────────────────────────────────────────────
@@ -1050,6 +1083,7 @@ function parseExcel(arrayBuffer) {
     renderTable();
 
     document.getElementById('format-overlay').classList.add('visible');
+    initKeyColDropdown();
   } catch (e) {
     alert('Failed to parse Excel file: ' + e.message);
   }
@@ -1892,8 +1926,7 @@ function highlightStep(step) {
   }
 
   document.getElementById('table-mode-label').textContent = 'Affected cells highlighted';
-  document.getElementById('diff-legend').style.display = 'flex';
-  syncAffectedToggleUI();
+  updateDiffLegend();
   renderTable();
 }
 
@@ -1923,9 +1956,8 @@ function navigateStep(dir) {
   if (next < 0 || next >= state.steps.length) return;
   state.changedCells = {};
   state.affectedFilterActive = false;
-  syncAffectedToggleUI();
   document.getElementById('table-mode-label').textContent = 'Dataset preview';
-  document.getElementById('diff-legend').style.display = 'none';
+  updateDiffLegend();
   if (!state.visited) state.visited = new Set();
   state.visited.add(state.stepIndex);
   showStep(next);
@@ -1947,7 +1979,7 @@ function showDone() {
   document.getElementById('done-sub').textContent =
     `${state.history.filter(h => !h.skipped).length} of ${state.steps.length} issues addressed.`;
   state.changedCells = {};
-  document.getElementById('diff-legend').style.display = 'none';
+  updateDiffLegend();
   document.getElementById('table-mode-label').textContent = 'Dataset preview';
   renderTable();
 }
@@ -1994,9 +2026,10 @@ function sortBy(col, fromExpand) {
 
 function getSortedFilteredRows(baseRows) {
   let rows = baseRows;
-  if (state.affectedFilterActive && Object.keys(state.changedCells).length > 0) {
+  if (state.affectedFilterActive) {
     const affectedIdxs = new Set(Object.keys(state.changedCells).map(Number));
-    rows = rows.filter((_, i) => affectedIdxs.has(state.workingData.indexOf(rows[i]) !== -1 ? state.workingData.indexOf(rows[i]) : i));
+    if (state._keyDupRows) state._keyDupRows.forEach(i => affectedIdxs.add(i));
+    if (affectedIdxs.size > 0) rows = rows.filter((_, i) => affectedIdxs.has(state.workingData.indexOf(rows[i]) !== -1 ? state.workingData.indexOf(rows[i]) : i));
   }
   if (state.searchQuery) {
     rows = rows.filter(row =>
@@ -2024,6 +2057,12 @@ function toggleAffectedFilter(fromExpand) {
   syncAffectedToggleUI();
   renderTable();
   if (document.getElementById('expand-overlay').style.display === 'flex') renderExpandTable();
+}
+
+function updateDiffLegend() {
+  const hasHighlight = Object.keys(state.changedCells).length > 0 || state._keyDupRows.size > 0;
+  document.getElementById('diff-legend').style.display = hasHighlight ? 'flex' : 'none';
+  syncAffectedToggleUI();
 }
 
 function syncAffectedToggleUI() {
@@ -2078,18 +2117,22 @@ function renderTable() {
   let html = '<table><thead><tr>';
   state.headers.forEach(h => {
     const isSorted = state.sortCol === h;
+    const isKey = state._markedKeys && state._markedKeys.has(h);
     const indicator = isSorted ? (state.sortDir === 'asc' ? ' ↑' : ' ↓') : '';
-    html += `<th onclick="sortBy('${escHtml(h)}')" style="cursor:pointer;user-select:none;${isSorted ? 'color:var(--accent);' : ''}">${escHtml(h)}${indicator}</th>`;
+    html += `<th onclick="sortBy('${escHtml(h)}')" style="cursor:pointer;user-select:none;${isSorted ? 'color:var(--accent);' : ''}${isKey ? 'background:rgba(255,255,255,0.06);' : ''}">${escHtml(h)}${indicator}</th>`;
   });
   html += '</tr></thead><tbody>';
 
   pageWithIdx.forEach(({ row, idx }) => {
-    const rowHighlighted = state.changedCells[idx];
+    const stepHighlight = state.changedCells[idx];
+    const dupHighlight = state._keyDupRows && state._keyDupRows.has(idx);
+    const rowHighlighted = stepHighlight || dupHighlight;
     html += `<tr${rowHighlighted ? ' class="changed"' : ''}>`;
     state.headers.forEach(h => {
-      const cellHighlighted = rowHighlighted && state.changedCells[idx][h];
+      const stepCell = stepHighlight && state.changedCells[idx][h];
+      const dupCell = dupHighlight && state._keyDupCols && state._keyDupCols.has(h);
       const val = row[h] !== undefined && row[h] !== null ? row[h] : '';
-      if (cellHighlighted) {
+      if (stepCell || dupCell) {
         html += `<td class="cell-changed">${escHtml(val)}</td>`;
       } else if (isTrueNull(val) || isNullString(val)) {
         html += `<td class="cell-null">NULL</td>`;
@@ -2141,6 +2184,15 @@ function resetAll() {
   document.getElementById('mode-tabs').style.display = 'none';
   document.getElementById('clean-view').style.display = '';
   document.getElementById('analysis-view').style.display = 'none';
+  document.getElementById('key-col-dropdown-wrap').style.display = 'none';
+  document.getElementById('key-dup-inline-result').textContent = '';
+  document.getElementById('key-mark-label').textContent = 'keys';
+  document.getElementById('key-check-label').textContent = 'check cols';
+  state._keyDupRows = new Set();
+  state._keyDupCols = new Set();
+  state._markedKeys = new Set();
+  state._keyMarkOpen = false;
+  state._keyCheckOpen = false;
   workspace.classList.remove('visible');
   uploadZone.classList.remove('hidden');
   document.getElementById('format-overlay').classList.remove('visible');
@@ -2162,44 +2214,6 @@ function resetAll() {
   document.getElementById('diff-legend').style.display = 'none';
   document.getElementById('table-mode-label').textContent = 'Dataset preview';
 }
-
-window.runKeyDupCheck = function() {
-  const selected = state.headers.filter(h => {
-    const el = document.getElementById(`keycheck_${h}`);
-    return el && el.checked;
-  });
-  const result = document.getElementById('key-dup-result');
-  if (selected.length === 0) {
-    result.innerHTML = '<div style="font-size:12px;color:var(--text3);">Select at least one column to check.</div>';
-    return;
-  }
-  const seen = new Map();
-  const dupes = [];
-  state.workingData.forEach((row, i) => {
-    const key = selected.map(h => row[h]).join('|||');
-    if (seen.has(key)) {
-      dupes.push({ row, key, firstIdx: seen.get(key), thisIdx: i });
-    } else {
-      seen.set(key, i);
-    }
-  });
-  if (dupes.length === 0) {
-    result.innerHTML = `<div style="font-size:12px;color:var(--accent);padding:0.75rem 1rem;background:var(--accent-dim);border-radius:var(--radius);border:1px solid rgba(200,240,106,0.2);">✓ No duplicate keys found on: ${selected.map(h => `"${escHtml(h)}"`).join(', ')}. These columns form a unique key across all ${state.workingData.length.toLocaleString()} rows.</div>`;
-  } else {
-    const pct = ((dupes.length / state.workingData.length) * 100).toFixed(1);
-    const sample = dupes.slice(0, 5);
-    result.innerHTML = `
-      <div style="padding:0.75rem 1rem;background:var(--red-dim);border:1px solid rgba(240,106,106,0.2);border-radius:var(--radius);margin-bottom:0.75rem;">
-        <div style="font-size:13px;color:var(--red);margin-bottom:4px;">⚠ ${dupes.length.toLocaleString()} duplicate keys found (${pct}% of rows)</div>
-        <div style="font-size:12px;color:var(--text2);">Columns checked: ${selected.map(h => `"${escHtml(h)}"`).join(', ')}. These rows share the same key value as an earlier row — if this column set is meant to be a unique identifier, these are data integrity violations.</div>
-      </div>
-      <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);">
-        Sample duplicates:<br>
-        ${sample.map(d => `Row ${d.thisIdx + 1} duplicates row ${d.firstIdx + 1}: ${selected.map(h => `${h}="${d.row[h]}"`).join(', ')}`).join('<br>')}
-        ${dupes.length > 5 ? `<br>...and ${dupes.length - 5} more` : ''}
-      </div>`;
-  }
-};
 
 // ─── EXPORT REPORT ────────────────────────────────────────────────────────────
 function exportReport() {
@@ -3023,53 +3037,6 @@ function buildStringPatterns(stats) {
   });
 }
 
-// ─── NUMERIC RANGE VALIDATOR ──────────────────────────────────────────────────
-function initRangeValidator(stats) {
-  const numCols = state.headers.filter(h => stats.columns[h].isNumeric);
-  const section = document.getElementById('analysis-rangecheck');
-  if (numCols.length === 0) { section.style.display = 'none'; return; }
-  section.style.display = 'block';
-  const sel = document.getElementById('range-col');
-  sel.innerHTML = numCols.map(h => `<option value="${escHtml(h)}">${escHtml(h)}</option>`).join('');
-  // Pre-fill with detected min/max
-  sel.onchange = () => {
-    const h = sel.value;
-    document.getElementById('range-min').value = stats.columns[h].min ?? '';
-    document.getElementById('range-max').value = stats.columns[h].max ?? '';
-  };
-  sel.onchange();
-}
-
-window.runRangeCheck = function() {
-  const col = document.getElementById('range-col').value;
-  const minVal = parseFloat(document.getElementById('range-min').value);
-  const maxVal = parseFloat(document.getElementById('range-max').value);
-  const result = document.getElementById('range-result');
-  if (!col) return;
-
-  const violations = state.workingData.filter(row => {
-    const v = parseFloat(row[col]);
-    if (isNaN(v)) return false;
-    if (!isNaN(minVal) && v < minVal) return true;
-    if (!isNaN(maxVal) && v > maxVal) return true;
-    return false;
-  });
-
-  if (violations.length === 0) {
-    result.innerHTML = `<div style="font-size:12px;color:var(--accent);padding:0.75rem 1rem;background:var(--accent-dim);border-radius:var(--radius);border:1px solid rgba(200,240,106,0.2);">✓ All ${state.workingData.length.toLocaleString()} rows fall within range [${!isNaN(minVal) ? minVal : '—'}, ${!isNaN(maxVal) ? maxVal : '—'}] for "${escHtml(col)}".</div>`;
-  } else {
-    const pct = ((violations.length / state.workingData.length) * 100).toFixed(1);
-    const sample = violations.slice(0, 5);
-    result.innerHTML = `
-      <div style="padding:0.75rem 1rem;background:var(--red-dim);border:1px solid rgba(240,106,106,0.2);border-radius:var(--radius);margin-bottom:0.75rem;">
-        <div style="font-size:13px;color:var(--red);margin-bottom:4px;">⚠ ${violations.length.toLocaleString()} violations (${pct}%)</div>
-        <div style="font-size:12px;color:var(--text2);">${violations.length.toLocaleString()} rows in "${escHtml(col)}" fall outside [${!isNaN(minVal) ? minVal : '—'}, ${!isNaN(maxVal) ? maxVal : '—'}].</div>
-      </div>
-      <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);">
-        Sample: ${sample.map(r => r[col]).join(', ')}${violations.length > 5 ? ` ... +${violations.length - 5} more` : ''}
-      </div>`;
-  }
-};
 
 function buildAnalysis() {
   // Destroy previous charts
@@ -3088,17 +3055,6 @@ function buildAnalysis() {
   secondary.innerHTML = '';
 
   const stats = computeStats();
-  // Build key column checkboxes
-  const keyColSection = document.getElementById('analysis-keydup');
-  const keyColBoxes = document.getElementById('key-col-checkboxes');
-  keyColSection.style.display = 'block';
-  keyColBoxes.innerHTML = state.headers.map(h => `
-    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer;
-      background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 10px;">
-      <input type="checkbox" id="keycheck_${escHtml(h)}" value="${escHtml(h)}" style="accent-color:var(--accent);">
-      ${escHtml(h)}
-    </label>
-  `).join('');
 
   buildStatsTable(stats);
   buildConsistencyChecks(stats);
@@ -3107,7 +3063,6 @@ function buildAnalysis() {
   initCrosstab(stats);
   buildShapeSummary(stats);
   buildDatePatterns(stats);
-  initRangeValidator(stats);
   const ACCENT = '#c8f06a';
   const AMBER = '#f0b86a';
   const RED = '#f06a6a';
@@ -3530,6 +3485,168 @@ function buildAnalysis() {
   }, 50); // defer to allow UI to render loading state
 }
 
+// ─── KEY COLUMN DUPLICATE CHECK (inline) ──────────────────────────────────────
+state._keyMarkOpen = false;
+state._keyCheckOpen = false;
+state._keyDupRows = new Set();
+state._markedKeys = new Set(); // columns marked as identifiers
+
+function initKeyColDropdown() {
+  const wrap = document.getElementById('key-col-dropdown-wrap');
+  wrap.style.display = 'flex';
+  renderKeyMarkList();
+  renderKeyCheckList();
+}
+
+function renderKeyMarkList() {
+  const list = document.getElementById('key-mark-list');
+  list.innerHTML = state.headers.map(h => `
+    <label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:5px;cursor:pointer;transition:background 0.1s;"
+      onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+      <input type="checkbox" data-markkey="${escHtml(h)}" ${state._markedKeys.has(h) ? 'checked' : ''} onchange="onMarkKeyChange()"
+        style="accent-color:var(--text2);width:13px;height:13px;cursor:pointer;flex-shrink:0;">
+      <span style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(h)}</span>
+    </label>
+  `).join('');
+}
+
+function renderKeyCheckList() {
+  const list = document.getElementById('key-check-list');
+  // Exclude marked keys from this list
+  const available = state.headers.filter(h => !state._markedKeys.has(h));
+  if (available.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--text3);padding:4px;">All columns marked as keys.</div>';
+    return;
+  }
+  list.innerHTML = available.map(h => `
+    <label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:5px;cursor:pointer;transition:background 0.1s;"
+      onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+      <input type="checkbox" data-checkkey="${escHtml(h)}" onchange="runKeyColDupCheck()"
+        style="accent-color:var(--accent);width:13px;height:13px;cursor:pointer;flex-shrink:0;">
+      <span style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(h)}</span>
+    </label>
+  `).join('');
+}
+
+function onMarkKeyChange() {
+  // Update marked keys set
+  state._markedKeys = new Set(
+    [...document.querySelectorAll('[data-markkey]:checked')].map(cb => cb.dataset.markkey)
+  );
+  // Update mark button label
+  const label = document.getElementById('key-mark-label');
+  label.textContent = state._markedKeys.size > 0 ? `${state._markedKeys.size} key${state._markedKeys.size > 1 ? 's' : ''}` : 'keys';
+  // Re-render check list (removing newly marked keys)
+  renderKeyCheckList();
+  // Re-highlight table (key columns get subtle background)
+  renderTable();
+  // Re-run dup check with updated columns
+  runKeyColDupCheck();
+}
+
+function toggleKeyMarkDropdown() {
+  const menu = document.getElementById('key-mark-menu');
+  const btn = document.getElementById('key-mark-btn');
+  state._keyMarkOpen = !state._keyMarkOpen;
+  if (state._keyCheckOpen) { // close other if open
+    document.getElementById('key-check-menu').style.display = 'none';
+    state._keyCheckOpen = false;
+  }
+  menu.style.display = state._keyMarkOpen ? 'block' : 'none';
+  btn.style.borderColor = state._keyMarkOpen ? 'var(--text2)' : 'var(--border2)';
+}
+
+function toggleKeyCheckDropdown() {
+  const menu = document.getElementById('key-check-menu');
+  const btn = document.getElementById('key-check-btn');
+  state._keyCheckOpen = !state._keyCheckOpen;
+  if (state._keyMarkOpen) { // close other if open
+    document.getElementById('key-mark-menu').style.display = 'none';
+    state._keyMarkOpen = false;
+  }
+  menu.style.display = state._keyCheckOpen ? 'block' : 'none';
+  btn.style.borderColor = state._keyCheckOpen ? 'var(--accent)' : 'var(--border2)';
+  btn.style.color = state._keyCheckOpen ? 'var(--accent)' : 'var(--text2)';
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('key-col-dropdown-wrap');
+  if (!wrap || !wrap.contains(e.target)) {
+    if (state._keyMarkOpen) {
+      document.getElementById('key-mark-menu').style.display = 'none';
+      document.getElementById('key-mark-btn').style.borderColor = 'var(--border2)';
+      state._keyMarkOpen = false;
+    }
+    if (state._keyCheckOpen) {
+      document.getElementById('key-check-menu').style.display = 'none';
+      document.getElementById('key-check-btn').style.borderColor = 'var(--border2)';
+      document.getElementById('key-check-btn').style.color = 'var(--text2)';
+      state._keyCheckOpen = false;
+    }
+  }
+});
+
+function runKeyColDupCheck() {
+  // Keys are always included; additional check cols are optional extras
+  const checkCols = [...document.querySelectorAll('[data-checkkey]:checked')].map(cb => cb.dataset.checkkey);
+  const allCols = [...state._markedKeys, ...checkCols];
+
+  // Update check button label
+  const checkLabel = document.getElementById('key-check-label');
+  checkLabel.textContent = checkCols.length > 0 ? `${checkCols.length} extra` : 'check cols';
+
+  const result = document.getElementById('key-dup-inline-result');
+
+  state._keyDupRows = new Set();
+
+  // Nothing to check if no keys marked and no check cols
+  if (allCols.length === 0) {
+    result.textContent = '';
+    document.getElementById('table-mode-label').textContent = 'Dataset preview';
+    updateDiffLegend();
+    renderTable();
+    return;
+  }
+
+  // If only keys marked but no check cols — just highlight key columns, no dup check
+  if (state._markedKeys.size > 0 && checkCols.length === 0) {
+    result.textContent = '';
+    document.getElementById('table-mode-label').textContent = 'Dataset preview';
+    updateDiffLegend();
+    renderTable();
+    return;
+  }
+
+  // Run duplicate check on key + check cols combined
+  const seen = new Map();
+  state.workingData.forEach((row, i) => {
+    const key = allCols.map(h => row[h]).join('|||');
+    if (seen.has(key)) {
+      state._keyDupRows.add(i);
+      state._keyDupRows.add(seen.get(key));
+    } else {
+      seen.set(key, i);
+    }
+  });
+
+  // Store which columns to highlight for dup rows
+  state._keyDupCols = new Set(allCols);
+
+  if (state._keyDupRows.size === 0) {
+    result.innerHTML = `<span style="color:var(--accent);">✓ No duplicates</span>`;
+    document.getElementById('table-mode-label').textContent = 'Dataset preview';
+  } else {
+    const pct = ((state._keyDupRows.size / state.workingData.length) * 100).toFixed(1);
+    result.innerHTML = `<span style="color:var(--red);">⚠ ${state._keyDupRows.size.toLocaleString()} rows (${pct}%)</span>`;
+    document.getElementById('table-mode-label').textContent = 'Duplicate key rows highlighted';
+  }
+
+  updateDiffLegend();
+  state.page = 0;
+  renderTable();
+}
+
 // ─── LOG ──────────────────────────────────────────────────────────────────────
 let logNotes = []; // [{id, text, time, favorited}]
 let logIdCounter = 0;
@@ -3670,8 +3787,9 @@ function renderExpandTable() {
   let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>';
   state.headers.forEach(h => {
     const isSorted = state.sortCol === h;
+    const isKey = state._markedKeys && state._markedKeys.has(h);
     const indicator = isSorted ? (state.sortDir === 'asc' ? ' ↑' : ' ↓') : '';
-    html += `<th onclick="sortBy('${escHtml(h)}')" style="padding:10px 14px;text-align:left;font-weight:500;font-family:'DM Mono',monospace;font-size:11px;border-bottom:1px solid var(--border);white-space:nowrap;letter-spacing:0.04em;position:sticky;top:0;background:var(--bg3);z-index:1;cursor:pointer;user-select:none;${isSorted ? 'color:var(--accent);' : 'color:var(--text2);'}">${escHtml(h)}${indicator}</th>`;
+    html += `<th onclick="sortBy('${escHtml(h)}')" style="padding:10px 14px;text-align:left;font-weight:500;font-family:'DM Mono',monospace;font-size:11px;border-bottom:1px solid var(--border);white-space:nowrap;letter-spacing:0.04em;position:sticky;top:0;z-index:1;cursor:pointer;user-select:none;${isKey ? 'background:rgba(255,255,255,0.06);' : 'background:var(--bg3);'}${isSorted ? 'color:var(--accent);' : 'color:var(--text2);'}">${escHtml(h)}${indicator}</th>`;
   });
   html += '</tr></thead><tbody>';
 
