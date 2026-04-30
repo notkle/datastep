@@ -25,6 +25,7 @@
     --red: #f06a6a;
     --red-dim: rgba(240,106,106,0.12);
     --amber: #f0b86a;
+    --blue: #6ab4f0;
     --radius: 10px;
     --radius-lg: 16px;
   }
@@ -733,6 +734,27 @@
            onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">⬇ Export report</button>
       </div>
 
+      <!-- SHAPE SUMMARY -->
+      <div id="analysis-shape" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:2rem;line-height:1.8;font-size:13px;color:var(--text2);display:none;"></div>
+
+      <!-- NUMERIC RANGE VALIDATOR -->
+      <div id="analysis-rangecheck" style="margin-bottom:2rem;display:none;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap;">
+          <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);">Range Validator</div>
+          <select id="range-col" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;outline:none;cursor:pointer;"></select>
+          <input id="range-min" type="number" placeholder="Min" style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;outline:none;">
+          <input id="range-max" type="number" placeholder="Max" style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;outline:none;">
+          <button onclick="runRangeCheck()" style="padding:5px 14px;background:var(--accent);color:#0e0e0f;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;">Check</button>
+        </div>
+        <div id="range-result"></div>
+      </div>
+
+      <!-- DATE PATTERN ANALYSIS -->
+      <div id="analysis-datepatterns" style="margin-bottom:2rem;display:none;">
+        <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Date Patterns</div>
+        <div id="analysis-datepatterns-content" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:1.5rem;"></div>
+      </div>
+
       <!-- COLUMN STATISTICS TABLE -->
       <div style="margin-bottom:2rem;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
@@ -794,6 +816,26 @@
       <div id="analysis-consistency" style="margin-bottom:2rem;display:none;">
         <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Value Consistency Checks</div>
         <div id="analysis-consistency-content" style="display:flex;flex-direction:column;gap:1rem;"></div>
+      </div>
+
+      <div id="analysis-cardinality" style="margin-bottom:2rem;display:none;">
+        <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Column Classification</div>
+        <div id="analysis-cardinality-content" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.75rem;"></div>
+      </div>
+
+      <div id="analysis-corr" style="margin-bottom:2rem;display:none;">
+        <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem;">Correlation Matrix</div>
+        <div id="analysis-corr-content"></div>
+      </div>
+
+      <div id="analysis-crosstab" style="margin-bottom:2rem;display:none;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap;">
+          <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);">Cross-tabulation</div>
+          <select id="crosstab-row" onchange="buildCrosstab()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;outline:none;cursor:pointer;"></select>
+          <span style="font-size:11px;color:var(--text3);">×</span>
+          <select id="crosstab-col" onchange="buildCrosstab()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;outline:none;cursor:pointer;"></select>
+        </div>
+        <div id="analysis-crosstab-content"></div>
       </div>
 
       <div id="analysis-primary" style="margin-bottom:2rem;">
@@ -1089,32 +1131,48 @@ function computeStats() {
       .sort((a, b) => b[1] - a[1])
       .map(([v, c]) => `"${v}" (${c})`);
 
-    // Suspicious zeros in numeric columns
+    // Suspicious zeros
     const zeroCount = numeric.filter(v => v === 0).length;
     const hasZeros = numeric.length > nonMissing.length * 0.7 && zeroCount > 0 && zeroCount < nonMissing.length * 0.5;
 
-    // Mixed types — column has both numeric and non-numeric non-missing values
+    // Mixed types
     const nonNumericNonMissing = nonMissing.filter(v => isNaN(parseFloat(v)));
     const hasMixedTypes = nonNumericNonMissing.length > 0 && numeric.length > 0 &&
       nonNumericNonMissing.length / nonMissing.length > 0.05 &&
       numeric.length / nonMissing.length > 0.05;
     const mixedSample = nonNumericNonMissing.slice(0, 3);
 
-    // Zero variance — only one unique value
+    // Zero variance
     const hasZeroVariance = unique.length === 1 && nonMissing.length > 0;
 
-    // Outliers — values > 3 std devs from mean in numeric columns
+    // Pre-compute sorted numeric array once — reused for median, quartiles, box plot, Pareto
+    const sortedNumeric = [...numeric].sort((a, b) => a - b);
+    const median = sortedNumeric.length === 0 ? null
+      : sortedNumeric.length % 2 === 0
+        ? +((sortedNumeric[sortedNumeric.length/2-1] + sortedNumeric[sortedNumeric.length/2]) / 2).toFixed(2)
+        : +sortedNumeric[Math.floor(sortedNumeric.length/2)].toFixed(2);
+    const q1 = sortedNumeric.length > 0 ? sortedNumeric[Math.floor(sortedNumeric.length * 0.25)] : null;
+    const q3 = sortedNumeric.length > 0 ? sortedNumeric[Math.floor(sortedNumeric.length * 0.75)] : null;
+    const meanVal = numeric.length ? +(numeric.reduce((a, b) => a + b, 0) / numeric.length).toFixed(2) : null;
+    const std = numeric.length > 1
+      ? +(Math.sqrt(numeric.reduce((a, b) => a + (b - meanVal) ** 2, 0) / numeric.length)).toFixed(2)
+      : null;
+
+    // Outliers — computed here once, not repeated in charts
     let outlierCount = 0;
     let outlierSample = [];
-    if (numeric.length > 10) {
-      const mean2 = numeric.reduce((a, b) => a + b, 0) / numeric.length;
-      const std = Math.sqrt(numeric.reduce((a, b) => a + (b - mean2) ** 2, 0) / numeric.length);
-      if (std > 0) {
-        const outliers = numeric.filter(v => Math.abs(v - mean2) > 3 * std);
-        outlierCount = outliers.length;
-        outlierSample = outliers.slice(0, 3).map(String);
-      }
+    if (numeric.length > 10 && std > 0) {
+      const outliers = sortedNumeric.filter(v => Math.abs(v - meanVal) > 3 * parseFloat(std));
+      outlierCount = outliers.length;
+      outlierSample = outliers.slice(0, 3).map(String);
     }
+
+    // Top value and entropy — computed from freq map already built
+    const topEntry = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+    const topValue = topEntry ? `${topEntry[0]} (${topEntry[1]})` : '—';
+    const entropy = nonMissing.length > 0
+      ? +(-(Object.values(freq).reduce((a, c) => { const p = c/nonMissing.length; return a + p * Math.log2(p); }, 0))).toFixed(2)
+      : 0;
 
     stats[h] = {
       nullCount, blankCount,
@@ -1123,9 +1181,11 @@ function computeStats() {
       missingCount: nullCount + blankCount,
       pct: n => ((n / vals.length) * 100).toFixed(1),
       isNumeric: numeric.length > nonMissing.length * 0.7,
-      min: numeric.length ? Math.min(...numeric) : null,
-      max: numeric.length ? Math.max(...numeric) : null,
-      mean: numeric.length ? +(numeric.reduce((a, b) => a + b, 0) / numeric.length).toFixed(2) : null,
+      min: numeric.length ? numeric.reduce((a, b) => a < b ? a : b) : null,
+      max: numeric.length ? numeric.reduce((a, b) => a > b ? a : b) : null,
+      mean: meanVal, median, std, q1, q3,
+      sortedNumeric,
+      topValue, entropy,
       hasWhitespace, whitespaceExamples,
       looksLikeDate, hasMixedDateFormats, dateSamples,
       hasCaseInconsistency, isLikelyCategorical,
@@ -1250,7 +1310,7 @@ function buildSteps() {
       steps.push({
         type: 'mixed_types', needsClaude: true,
         column: h, mixedSample: c[h].mixedSample,
-        pct: c[h].pct(c[h].nonNumericNonMissing ? c[h].nonNumericNonMissing.length : 0),
+        pct: c[h].pct(c[h].mixedSample ? c[h].mixedSample.length : 0),
       });
     }
   });
@@ -2143,6 +2203,54 @@ window.runKeyDupCheck = function() {
 
 // ─── EXPORT REPORT ────────────────────────────────────────────────────────────
 function exportReport() {
+  // Build confirmation overlay
+  const defaultName = state.fileName.replace(/\.(csv|xlsx|xls|xlsm)$/i, '_datastep_report');
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(14,14,15,0.85);backdrop-filter:blur(3px);z-index:500;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:2rem;width:420px;display:flex;flex-direction:column;gap:1.25rem;">
+      <div style="font-family:'Instrument Serif',serif;font-size:22px;">Export report</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;">
+        A standalone HTML report will be generated containing the column statistics, detected issues, and dataset overview. Opens in any browser and is printable.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Filename</label>
+        <div style="display:flex;align-items:center;gap:0;">
+          <input id="report-filename" type="text" value="${defaultName}" style="
+            flex:1;background:var(--bg3);border:1px solid var(--border2);border-right:none;
+            border-radius:var(--radius) 0 0 var(--radius);padding:9px 12px;
+            color:var(--text);font-size:13px;font-family:'DM Mono',monospace;outline:none;
+          ">
+          <span style="background:var(--bg3);border:1px solid var(--border2);border-radius:0 var(--radius) var(--radius) 0;padding:9px 10px;color:var(--text3);font-size:12px;font-family:'DM Mono',monospace;">.html</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="report-cancel" style="
+          padding:9px 18px;background:transparent;border:1px solid var(--border2);
+          border-radius:var(--radius);color:var(--text2);font-size:13px;cursor:pointer;
+          font-family:'DM Sans',sans-serif;transition:all 0.15s;">Cancel</button>
+        <button id="report-confirm" style="
+          padding:9px 18px;background:var(--accent);border:none;
+          border-radius:var(--radius);color:#0e0e0f;font-size:13px;font-weight:500;cursor:pointer;
+          font-family:'DM Sans',sans-serif;transition:all 0.15s;">⬇ Export</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  document.getElementById('report-filename').select();
+
+  document.getElementById('report-cancel').onclick = () => document.body.removeChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) document.body.removeChild(overlay); });
+
+  document.getElementById('report-confirm').onclick = () => {
+    const filename = (document.getElementById('report-filename').value.trim() || defaultName) + '.html';
+    document.body.removeChild(overlay);
+    generateAndDownloadReport(filename);
+  };
+}
+
+function generateAndDownloadReport(filename) {
   const stats = computeStats();
   const now = new Date().toLocaleString();
 
@@ -2224,7 +2332,7 @@ ${state.steps.length > 0 ? `
   const blob = new Blob([html], { type: 'text/html' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = state.fileName.replace('.csv', '_datastep_report.html');
+  a.download = filename;
   a.click();
 }
 
@@ -2284,35 +2392,18 @@ function buildStatsTable(stats) {
 
   statsRows = state.headers.map(h => {
     const s = stats.columns[h];
-    const vals = state.workingData.map(r => r[h]).filter(v => !isEffectivelyMissing(v));
-    const numeric = vals.map(v => parseFloat(v)).filter(v => !isNaN(v));
-    const sorted_v = [...numeric].sort((a, b) => a - b);
-    const median = sorted_v.length === 0 ? null
-      : sorted_v.length % 2 === 0
-        ? +((sorted_v[sorted_v.length/2-1] + sorted_v[sorted_v.length/2]) / 2).toFixed(2)
-        : +sorted_v[Math.floor(sorted_v.length/2)].toFixed(2);
-    const std = numeric.length > 1
-      ? +(Math.sqrt(numeric.reduce((a, b) => a + (b - s.mean) ** 2, 0) / numeric.length)).toFixed(2)
-      : null;
-    const freq = {};
-    vals.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
-    const topEntry = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
-    const top = topEntry ? `${topEntry[0]} (${topEntry[1]})` : '—';
-    const entropy = vals.length > 0
-      ? +(-(Object.values(freq).reduce((a, c) => { const p = c / vals.length; return a + p * Math.log2(p); }, 0))).toFixed(2)
-      : 0;
     const type = s.looksLikeDate ? 'date' : s.isNumeric ? 'numeric' : s.hasMixedTypes ? 'mixed' : 'categorical';
     const nonNull = +(((s.totalCount - s.nullCount - s.blankCount) / s.totalCount) * 100).toFixed(1);
-
     return {
       name: h, type, nonNull,
       unique: s.uniqueCount,
       min: s.isNumeric ? s.min : null,
       max: s.isNumeric ? s.max : null,
       mean: s.isNumeric ? s.mean : null,
-      median: s.isNumeric ? median : null,
-      std: s.isNumeric ? std : null,
-      top, entropy,
+      median: s.isNumeric ? s.median : null,
+      std: s.isNumeric ? s.std : null,
+      top: s.topValue || '—',
+      entropy: s.entropy,
       _missing: +(100 - nonNull).toFixed(1),
     };
   });
@@ -2517,13 +2608,482 @@ function buildConsistencyChecks(stats) {
   });
 }
 
+// ─── CARDINALITY CLASSIFIER ───────────────────────────────────────────────────
+function buildCardinalityClassifier(stats) {
+  const section = document.getElementById('analysis-cardinality');
+  const content = document.getElementById('analysis-cardinality-content');
+  section.style.display = 'block';
+  content.innerHTML = '';
+
+  const classifications = state.headers.map(h => {
+    const s = stats.columns[h];
+    const n = s.totalCount;
+    const u = s.uniqueCount;
+    let cls, color, desc;
+    if (u === 1) { cls = 'constant'; color = 'var(--text3)'; desc = 'Single value — no analytical value'; }
+    else if (u === 2) { cls = 'binary'; color = 'var(--amber)'; desc = 'Two values — likely boolean/flag'; }
+    else if (u === n && n > 10) { cls = 'unique ID'; color = 'var(--accent)'; desc = 'All values distinct — likely a key'; }
+    else if (u > n * 0.9 && n > 10) { cls = 'near-unique'; color = 'var(--blue)'; desc = 'High cardinality — likely an ID or free text'; }
+    else if (s.looksLikeDate) { cls = 'date'; color = 'var(--accent)'; desc = 'Date/time column'; }
+    else if (s.isNumeric) { cls = 'numeric'; color = 'var(--blue)'; desc = `${u} unique values`; }
+    else if (u <= 10) { cls = 'low-card cat.'; color = 'var(--text2)'; desc = `${u} categories — good for grouping`; }
+    else if (u <= 50) { cls = 'med-card cat.'; color = 'var(--text2)'; desc = `${u} categories`; }
+    else { cls = 'high-card cat.'; color = 'var(--amber)'; desc = `${u} unique values — may need binning`; }
+    return { h, cls, color, desc, u, n };
+  });
+
+  content.innerHTML = classifications.map(c => `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:0.875rem;">
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text);font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(c.h)}">${escHtml(c.h)}</div>
+      <div style="font-size:10px;color:${c.color};font-family:'DM Mono',monospace;letter-spacing:0.04em;margin-bottom:4px;">${c.cls}</div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.4;">${escHtml(c.desc)}</div>
+    </div>
+  `).join('');
+}
+
+// ─── CORRELATION MATRIX ───────────────────────────────────────────────────────
+function buildCorrelationMatrix(stats) {
+  const numCols = state.headers.filter(h => stats.columns[h].isNumeric);
+  const section = document.getElementById('analysis-corr');
+  const content = document.getElementById('analysis-corr-content');
+
+  if (numCols.length < 2) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  // Pre-extract full column arrays as Float64 for speed
+  const colArrays = {};
+  numCols.forEach(h => {
+    colArrays[h] = new Float64Array(state.workingData.length);
+    state.workingData.forEach((r, i) => {
+      colArrays[h][i] = parseFloat(r[h]);
+    });
+  });
+
+  // Single-pass Pearson r per pair — no intermediate arrays
+  function pearson(a, b) {
+    let n = 0, sa = 0, sb = 0, sab = 0, sa2 = 0, sb2 = 0;
+    for (let i = 0; i < a.length; i++) {
+      const va = a[i], vb = b[i];
+      if (isNaN(va) || isNaN(vb)) continue;
+      n++; sa += va; sb += vb; sab += va * vb; sa2 += va * va; sb2 += vb * vb;
+    }
+    if (n < 5) return 0;
+    const num = n * sab - sa * sb;
+    const den = Math.sqrt((n * sa2 - sa * sa) * (n * sb2 - sb * sb));
+    return den ? +(num / den).toFixed(2) : 0;
+  }
+
+  const matrix = {};
+  numCols.forEach(a => {
+    matrix[a] = {};
+    numCols.forEach(b => { matrix[a][b] = pearson(colArrays[a], colArrays[b]); });
+  });
+
+  // Render as HTML table heatmap
+  const size = Math.max(60, Math.min(90, Math.floor(600 / numCols.length)));
+  let html = `<div style="overflow-x:auto;"><table style="border-collapse:collapse;font-family:'DM Mono',monospace;font-size:10px;">`;
+  html += `<tr><th style="padding:4px;"></th>`;
+  numCols.forEach(h => {
+    html += `<th style="padding:4px 6px;color:var(--text3);white-space:nowrap;max-width:${size}px;overflow:hidden;text-overflow:ellipsis;writing-mode:vertical-rl;transform:rotate(180deg);height:80px;vertical-align:bottom;" title="${escHtml(h)}">${escHtml(h)}</th>`;
+  });
+  html += '</tr>';
+
+  numCols.forEach(a => {
+    html += `<tr><td style="padding:4px 8px;color:var(--text3);white-space:nowrap;font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;" title="${escHtml(a)}">${escHtml(a)}</td>`;
+    numCols.forEach(b => {
+      const r = matrix[a][b];
+      const abs = Math.abs(r);
+      const isPos = r >= 0;
+      const alpha = a === b ? 0.15 : abs * 0.85 + 0.05;
+      const bg = a === b ? 'rgba(255,255,255,0.08)'
+        : isPos ? `rgba(200,240,106,${alpha})` : `rgba(240,106,106,${alpha})`;
+      const textColor = abs > 0.6 && a !== b ? '#0e0e0f' : 'var(--text2)';
+      html += `<td style="width:${size}px;height:${size}px;background:${bg};text-align:center;vertical-align:middle;border:1px solid rgba(255,255,255,0.04);color:${textColor};cursor:default;" title="${escHtml(a)} vs ${escHtml(b)}: r=${r}">${a === b ? '—' : r}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</table></div>';
+
+  const breakdown = numCols.length >= 2 ? (() => {
+    let strongest = { r: 0, a: '', b: '' };
+    numCols.forEach(a => numCols.forEach(b => {
+      if (a !== b && Math.abs(matrix[a][b]) > Math.abs(strongest.r)) {
+        strongest = { r: matrix[a][b], a, b };
+      }
+    }));
+    return `Strongest relationship: "${strongest.a}" vs "${strongest.b}" (r = ${strongest.r}). Green = positive correlation, red = negative. Diagonal is always 1.0 (self-correlation). Values near 0 indicate no linear relationship.`;
+  })() : '';
+
+  content.innerHTML = html + (breakdown ? `<div style="font-size:12px;color:var(--text3);line-height:1.6;margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem;">${escHtml(breakdown)}</div>` : '');
+}
+
+// ─── CROSS-TABULATION ─────────────────────────────────────────────────────────
+function initCrosstab(stats) {
+  const catCols = state.headers.filter(h => !stats.columns[h].isNumeric && stats.columns[h].uniqueCount <= 30);
+  const section = document.getElementById('analysis-crosstab');
+  if (catCols.length < 2) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  const rowSel = document.getElementById('crosstab-row');
+  const colSel = document.getElementById('crosstab-col');
+  rowSel.innerHTML = catCols.map(h => `<option value="${escHtml(h)}">${escHtml(h)}</option>`).join('');
+  colSel.innerHTML = catCols.map((h, i) => `<option value="${escHtml(h)}" ${i === 1 ? 'selected' : ''}>${escHtml(h)}</option>`).join('');
+  buildCrosstab();
+}
+
+window.buildCrosstab = function() {
+  const rowCol = document.getElementById('crosstab-row').value;
+  const colCol = document.getElementById('crosstab-col').value;
+  const content = document.getElementById('analysis-crosstab-content');
+  if (!rowCol || !colCol || rowCol === colCol) {
+    content.innerHTML = '<div style="font-size:12px;color:var(--text3);">Select two different columns.</div>';
+    return;
+  }
+
+  const rowVals = [...new Set(state.workingData.map(r => r[rowCol]).filter(v => !isEffectivelyMissing(v)))].sort();
+  const colVals = [...new Set(state.workingData.map(r => r[colCol]).filter(v => !isEffectivelyMissing(v)))].sort();
+  if (rowVals.length > 20 || colVals.length > 20) {
+    content.innerHTML = '<div style="font-size:12px;color:var(--text3);">Too many unique values for cross-tabulation (max 20 per axis). Select lower-cardinality columns.</div>';
+    return;
+  }
+
+  // Build frequency table
+  const table = {};
+  const rowTotals = {}, colTotals = {};
+  rowVals.forEach(r => { table[r] = {}; rowTotals[r] = 0; colVals.forEach(c => { table[r][c] = 0; }); });
+  colVals.forEach(c => { colTotals[c] = 0; });
+  let grand = 0;
+
+  state.workingData.forEach(row => {
+    const rv = row[rowCol], cv = row[colCol];
+    if (isEffectivelyMissing(rv) || isEffectivelyMissing(cv)) return;
+    if (table[rv] !== undefined && colVals.includes(cv)) {
+      table[rv][cv]++;
+      rowTotals[rv]++;
+      colTotals[cv]++;
+      grand++;
+    }
+  });
+
+  const maxVal = Math.max(...rowVals.flatMap(r => colVals.map(c => table[r][c])));
+
+  let html = `<div style="overflow-x:auto;"><table style="border-collapse:collapse;font-size:11px;font-family:'DM Mono',monospace;width:100%;">`;
+  html += `<thead><tr><th style="padding:8px 10px;text-align:left;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg3);">${escHtml(rowCol)} \\ ${escHtml(colCol)}</th>`;
+  colVals.forEach(c => { html += `<th style="padding:8px 10px;text-align:right;color:var(--text2);border-bottom:1px solid var(--border);background:var(--bg3);white-space:nowrap;">${escHtml(c)}</th>`; });
+  html += `<th style="padding:8px 10px;text-align:right;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg3);">Total</th></tr></thead><tbody>`;
+
+  rowVals.forEach((r, ri) => {
+    html += `<tr style="${ri % 2 === 0 ? '' : 'background:rgba(255,255,255,0.015);'}">`;
+    html += `<td style="padding:7px 10px;color:var(--text2);font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap;">${escHtml(r)}</td>`;
+    colVals.forEach(c => {
+      const val = table[r][c];
+      const pct = grand > 0 ? (val / grand * 100).toFixed(1) : 0;
+      const intensity = maxVal > 0 ? val / maxVal : 0;
+      const bg = intensity > 0.05 ? `rgba(200,240,106,${(intensity * 0.4).toFixed(2)})` : 'transparent';
+      html += `<td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);background:${bg};" title="${val} rows (${pct}%)">${val.toLocaleString()}<span style="color:var(--text3);font-size:9px;margin-left:4px;">${pct}%</span></td>`;
+    });
+    html += `<td style="padding:7px 10px;text-align:right;color:var(--text3);border-bottom:1px solid var(--border);">${rowTotals[r].toLocaleString()}</td></tr>`;
+  });
+
+  html += `<tr style="background:var(--bg3);"><td style="padding:7px 10px;color:var(--text3);font-size:10px;letter-spacing:0.04em;">TOTAL</td>`;
+  colVals.forEach(c => { html += `<td style="padding:7px 10px;text-align:right;color:var(--text3);">${colTotals[c].toLocaleString()}</td>`; });
+  html += `<td style="padding:7px 10px;text-align:right;color:var(--text2);font-weight:500;">${grand.toLocaleString()}</td></tr>`;
+  html += '</tbody></table></div>';
+  html += `<div style="font-size:11px;color:var(--text3);margin-top:0.5rem;">Cell color intensity = frequency. Values show count and % of total ${grand.toLocaleString()} rows.</div>`;
+  content.innerHTML = html;
+};
+
+// ─── DATASET SHAPE SUMMARY ────────────────────────────────────────────────────
+function buildShapeSummary(stats) {
+  const el = document.getElementById('analysis-shape');
+  el.style.display = 'block';
+
+  const n = state.workingData.length;
+  const cols = state.headers.length;
+  const numCols = state.headers.filter(h => stats.columns[h].isNumeric);
+  const catCols = state.headers.filter(h => !stats.columns[h].isNumeric && !stats.columns[h].looksLikeDate);
+  const dateCols = state.headers.filter(h => stats.columns[h].looksLikeDate);
+  const totalCells = n * cols;
+  const totalMissing = state.headers.reduce((a, h) => a + stats.columns[h].nullCount + stats.columns[h].blankCount, 0);
+  const completeness = (((totalCells - totalMissing) / totalCells) * 100).toFixed(1);
+
+  // Most missing column
+  const mostMissing = state.headers.reduce((a, h) =>
+    (stats.columns[h].nullCount + stats.columns[h].blankCount) > (stats.columns[a].nullCount + stats.columns[a].blankCount) ? h : a
+  , state.headers[0]);
+  const mostMissingPct = (((stats.columns[mostMissing].nullCount + stats.columns[mostMissing].blankCount) / n) * 100).toFixed(1);
+
+  // Most imbalanced categorical
+  let mostImbalanced = null, lowestEntropy = Infinity;
+  catCols.forEach(h => {
+    const s = stats.columns[h];
+    if (s.uniqueCount < 2 || s.uniqueCount > 30) return;
+    const vals = state.workingData.map(r => r[h]).filter(v => !isEffectivelyMissing(v));
+    const freq = {};
+    vals.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
+    const entropy = -Object.values(freq).reduce((a, c) => { const p = c / vals.length; return a + p * Math.log2(p); }, 0);
+    if (entropy < lowestEntropy) { lowestEntropy = entropy; mostImbalanced = h; }
+  });
+
+  const sentinelCols = state.headers.filter(h => stats.columns[h].hasSentinels);
+
+  let summary = `<strong style="color:var(--text);">${escHtml(state.fileName)}</strong> contains <strong style="color:var(--accent);">${n.toLocaleString()} rows</strong> and <strong style="color:var(--accent);">${cols} columns</strong> — `;
+  summary += `${numCols.length} numeric, ${catCols.length} categorical${dateCols.length > 0 ? `, ${dateCols.length} date` : ''}. `;
+  summary += `Overall dataset completeness is <strong style="color:${parseFloat(completeness) > 95 ? 'var(--accent)' : parseFloat(completeness) > 80 ? 'var(--amber)' : 'var(--red)'};">${completeness}%</strong>. `;
+
+  if (parseFloat(mostMissingPct) > 0) {
+    summary += `The most incomplete column is <strong style="color:var(--text);">"${escHtml(mostMissing)}"</strong> (${mostMissingPct}% missing). `;
+  }
+  if (sentinelCols.length > 0) {
+    summary += `<strong style="color:var(--amber);">${sentinelCols.length} column${sentinelCols.length > 1 ? 's contain' : ' contains'} sentinel values</strong> (e.g. "unknown") masking missing data. `;
+  }
+  if (numCols.length >= 2) {
+    summary += `See the correlation matrix below for numeric relationships. `;
+  }
+  if (mostImbalanced) {
+    const vals = state.workingData.map(r => r[mostImbalanced]).filter(v => !isEffectivelyMissing(v));
+    const freq = {};
+    vals.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
+    const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+    summary += `Most imbalanced category: <strong style="color:var(--text);">"${escHtml(mostImbalanced)}"</strong> — "${escHtml(top[0])}" accounts for ${((top[1] / vals.length) * 100).toFixed(1)}% of values.`;
+  }
+
+  el.innerHTML = summary;
+}
+
+// ─── DATE PATTERN ANALYSIS ────────────────────────────────────────────────────
+function buildDatePatterns(stats) {
+  const dateCols = state.headers.filter(h => stats.columns[h].looksLikeDate);
+  const section = document.getElementById('analysis-datepatterns');
+  const content = document.getElementById('analysis-datepatterns-content');
+  if (dateCols.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  content.innerHTML = '';
+
+  const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const ACCENT = '#c8f06a', GRID_COLOR = 'rgba(255,255,255,0.06)', TEXT_COLOR = '#9e9d96';
+  const chartDefaults = { color: TEXT_COLOR, font: { family: 'DM Mono, monospace', size: 11 } };
+
+  dateCols.forEach(h => {
+    const dates = state.workingData
+      .map(r => r[h])
+      .filter(v => !isEffectivelyMissing(v) && !isNullString(v))
+      .map(v => new Date(v))
+      .filter(d => !isNaN(d.getTime()));
+
+    if (dates.length < 10) return;
+
+    // Day of week distribution
+    const dowCounts = Array(7).fill(0);
+    dates.forEach(d => dowCounts[d.getDay()]++);
+    const peakDay = DAYS[dowCounts.indexOf(Math.max(...dowCounts))];
+    const weekdayTotal = dowCounts.slice(1, 6).reduce((a, b) => a + b, 0);
+    const weekendTotal = dowCounts[0] + dowCounts[6];
+    const weekendPct = ((weekendTotal / dates.length) * 100).toFixed(1);
+
+    const dowCanvas = makeCard2(`"${h}" — day of week`, `${dates.length.toLocaleString()} valid dates`, content,
+      `Peak day: ${peakDay}. Weekday vs weekend split: ${(100 - parseFloat(weekendPct)).toFixed(1)}% weekday / ${weekendPct}% weekend. ${parseFloat(weekendPct) < 5 ? 'Almost exclusively weekday data — likely business transactions.' : parseFloat(weekendPct) > 40 ? 'Significant weekend activity.' : 'Typical weekday-heavy pattern.'}`);
+    const dowChart = new Chart(dowCanvas, {
+      type: 'bar',
+      data: { labels: DAYS, datasets: [{ data: dowCounts, backgroundColor: DAYS.map((_, i) => i === 0 || i === 6 ? '#f0b86a99' : ACCENT + '99'), borderWidth: 0, borderRadius: 3 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw.toLocaleString()} rows` } } },
+        scales: { x: { ticks: chartDefaults, grid: { color: GRID_COLOR } }, y: { ticks: chartDefaults, grid: { color: GRID_COLOR } } } }
+    });
+    chartInstances.push(dowChart);
+
+    // Month distribution
+    const monthCounts = Array(12).fill(0);
+    dates.forEach(d => monthCounts[d.getMonth()]++);
+    const peakMonth = MONTHS[monthCounts.indexOf(Math.max(...monthCounts))];
+    const troughMonth = MONTHS[monthCounts.indexOf(Math.min(...monthCounts))];
+
+    const monthCanvas = makeCard2(`"${h}" — month distribution`, 'Activity by month of year', content,
+      `Peak month: ${peakMonth} (${Math.max(...monthCounts).toLocaleString()} rows). Lowest: ${troughMonth} (${Math.min(...monthCounts).toLocaleString()} rows). Variation of ${(((Math.max(...monthCounts) - Math.min(...monthCounts)) / (Math.max(...monthCounts) || 1)) * 100).toFixed(0)}% between peak and trough — ${((Math.max(...monthCounts) - Math.min(...monthCounts)) / (Math.max(...monthCounts) || 1)) > 0.5 ? 'strong seasonal pattern detected.' : 'relatively consistent throughout the year.'}`);
+    const monthChart = new Chart(monthCanvas, {
+      type: 'bar',
+      data: { labels: MONTHS, datasets: [{ data: monthCounts, backgroundColor: ACCENT + '99', borderWidth: 0, borderRadius: 3 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw.toLocaleString()} rows` } } },
+        scales: { x: { ticks: chartDefaults, grid: { color: GRID_COLOR } }, y: { ticks: chartDefaults, grid: { color: GRID_COLOR } } } }
+    });
+    chartInstances.push(monthChart);
+
+    // Timeline gap detection
+    const sorted = [...dates].sort((a, b) => a - b);
+    const gaps = [];
+    for (let i = 1; i < sorted.length; i++) {
+      const gapDays = (sorted[i] - sorted[i-1]) / (1000 * 60 * 60 * 24);
+      if (gapDays > 7) gaps.push({ days: Math.round(gapDays), from: sorted[i-1].toISOString().slice(0,10), to: sorted[i].toISOString().slice(0,10) });
+    }
+    if (gaps.length > 0) {
+      const biggestGap = gaps.reduce((a, b) => a.days > b.days ? a : b);
+      const gapEl = document.createElement('div');
+      gapEl.style.cssText = 'background:var(--bg2);border:1px solid var(--amber);border-radius:var(--radius);padding:0.875rem 1rem;';
+      gapEl.innerHTML = `<div style="font-size:12px;color:var(--amber);font-weight:500;margin-bottom:4px;">"${escHtml(h)}" — ${gaps.length} timeline gap${gaps.length > 1 ? 's' : ''} detected</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6;">Largest gap: <strong>${biggestGap.days} days</strong> between ${biggestGap.from} and ${biggestGap.to}. ${gaps.length > 3 ? 'Multiple gaps suggest missing data periods or irregular recording.' : 'May indicate holidays, system downtime, or missing data.'}</div>
+        ${gaps.length > 1 ? `<div style="font-size:11px;color:var(--text3);margin-top:6px;font-family:'DM Mono',monospace;">All gaps >7 days: ${gaps.slice(0,5).map(g => `${g.from}→${g.to} (${g.days}d)`).join(' · ')}${gaps.length > 5 ? ` +${gaps.length - 5} more` : ''}</div>` : ''}`;
+      content.appendChild(gapEl);
+    }
+  });
+}
+
+function makeCard2(title, sub, container, breakdown) {
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+  card.innerHTML = `<div class="chart-card-title">${escHtml(title)}</div>${sub ? `<div class="chart-card-sub">${escHtml(sub)}</div>` : ''}`;
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:relative;height:220px;width:100%;';
+  const canvas = document.createElement('canvas');
+  wrapper.appendChild(canvas);
+  card.appendChild(wrapper);
+  if (breakdown) {
+    const bd = document.createElement('div');
+    bd.style.cssText = 'font-size:12px;color:var(--text3);line-height:1.6;border-top:1px solid var(--border);padding-top:0.75rem;margin-top:0.25rem;';
+    bd.textContent = breakdown;
+    card.appendChild(bd);
+  }
+  container.appendChild(card);
+  return canvas;
+}
+
+// ─── STRING PATTERN DETECTION ─────────────────────────────────────────────────
+function buildStringPatterns(stats) {
+  const section = document.getElementById('analysis-patterns');
+  const content = document.getElementById('analysis-patterns-content');
+  content.innerHTML = '';
+  const findings = [];
+
+  state.headers.forEach(h => {
+    const s = stats.columns[h];
+    if (s.isNumeric || s.looksLikeDate) return;
+    const vals = state.workingData.map(r => r[h]).filter(v => !isEffectivelyMissing(v) && typeof v === 'string');
+    if (vals.length < 10) return;
+
+    // Detect consistent prefix
+    const firstVal = vals[0];
+    let prefixLen = 0;
+    for (let i = 1; i <= Math.min(10, firstVal.length); i++) {
+      const prefix = firstVal.slice(0, i);
+      if (vals.slice(0, 50).every(v => v.startsWith(prefix))) prefixLen = i;
+      else break;
+    }
+    const prefix = prefixLen > 0 ? firstVal.slice(0, prefixLen) : null;
+    const prefixViolations = prefix ? vals.filter(v => !v.startsWith(prefix)) : [];
+
+    // Detect consistent length
+    const lengths = vals.map(v => v.length);
+    const uniqueLengths = new Set(lengths);
+    const dominantLen = lengths.sort((a, b) =>
+      lengths.filter(l => l === b).length - lengths.filter(l => l === a).length
+    )[0];
+    const lenViolations = vals.filter(v => v.length !== dominantLen);
+    const lenConsistent = uniqueLengths.size === 1;
+
+    // Detect all-caps vs all-lower
+    const allCaps = vals.filter(v => v === v.toUpperCase() && /[A-Z]/.test(v)).length;
+    const allLower = vals.filter(v => v === v.toLowerCase() && /[a-z]/.test(v)).length;
+    const caseConsistent = allCaps / vals.length > 0.95 || allLower / vals.length > 0.95;
+    const dominantCase = allCaps > allLower ? 'UPPERCASE' : 'lowercase';
+    const caseViolations = allCaps > allLower
+      ? vals.filter(v => v !== v.toUpperCase() && /[a-z]/.test(v)).length
+      : vals.filter(v => v !== v.toLowerCase() && /[A-Z]/.test(v)).length;
+
+    const issues = [];
+    if (prefix && prefixViolations.length > 0) issues.push(`${prefixViolations.length} values don't start with expected prefix "${escHtml(prefix)}"`);
+    if (!lenConsistent && lenViolations.length > 0 && lenViolations.length < vals.length * 0.1) issues.push(`${lenViolations.length} values have inconsistent length (expected ${dominantLen} chars)`);
+    if (caseConsistent && caseViolations > 0) issues.push(`${caseViolations} values break the ${dominantCase} pattern`);
+
+    if (issues.length > 0 || prefix || lenConsistent) {
+      findings.push({ h, prefix, dominantLen, lenConsistent, caseConsistent, dominantCase, issues, sample: vals.slice(0, 3), total: vals.length });
+    }
+  });
+
+  if (findings.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  findings.forEach(f => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:0.875rem 1rem;';
+    const patterns = [];
+    if (f.prefix) patterns.push(`Prefix: <span style="color:var(--accent);font-family:'DM Mono',monospace;">"${escHtml(f.prefix)}..."</span>`);
+    if (f.lenConsistent) patterns.push(`Fixed length: <span style="color:var(--accent);font-family:'DM Mono',monospace;">${f.dominantLen} chars</span>`);
+    if (f.caseConsistent) patterns.push(`Case: <span style="color:var(--accent);font-family:'DM Mono',monospace;">${f.dominantCase}</span>`);
+
+    card.innerHTML = `
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-size:13px;color:var(--text);font-weight:500;">"${escHtml(f.h)}"</div>
+        <div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;">${f.total.toLocaleString()} values</div>
+      </div>
+      ${patterns.length > 0 ? `<div style="font-size:12px;color:var(--text2);margin-bottom:6px;">Detected pattern: ${patterns.join(' · ')}</div>` : ''}
+      ${f.issues.length > 0 ? `<div style="font-size:12px;color:var(--amber);margin-bottom:4px;">⚠ ${f.issues.join(' · ')}</div>` : '<div style="font-size:12px;color:var(--accent);">✓ All values conform to detected pattern</div>'}
+      <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;">Sample: ${f.sample.map(v => `"${escHtml(v)}"`).join(', ')}</div>
+    `;
+    content.appendChild(card);
+  });
+}
+
+// ─── NUMERIC RANGE VALIDATOR ──────────────────────────────────────────────────
+function initRangeValidator(stats) {
+  const numCols = state.headers.filter(h => stats.columns[h].isNumeric);
+  const section = document.getElementById('analysis-rangecheck');
+  if (numCols.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  const sel = document.getElementById('range-col');
+  sel.innerHTML = numCols.map(h => `<option value="${escHtml(h)}">${escHtml(h)}</option>`).join('');
+  // Pre-fill with detected min/max
+  sel.onchange = () => {
+    const h = sel.value;
+    document.getElementById('range-min').value = stats.columns[h].min ?? '';
+    document.getElementById('range-max').value = stats.columns[h].max ?? '';
+  };
+  sel.onchange();
+}
+
+window.runRangeCheck = function() {
+  const col = document.getElementById('range-col').value;
+  const minVal = parseFloat(document.getElementById('range-min').value);
+  const maxVal = parseFloat(document.getElementById('range-max').value);
+  const result = document.getElementById('range-result');
+  if (!col) return;
+
+  const violations = state.workingData.filter(row => {
+    const v = parseFloat(row[col]);
+    if (isNaN(v)) return false;
+    if (!isNaN(minVal) && v < minVal) return true;
+    if (!isNaN(maxVal) && v > maxVal) return true;
+    return false;
+  });
+
+  if (violations.length === 0) {
+    result.innerHTML = `<div style="font-size:12px;color:var(--accent);padding:0.75rem 1rem;background:var(--accent-dim);border-radius:var(--radius);border:1px solid rgba(200,240,106,0.2);">✓ All ${state.workingData.length.toLocaleString()} rows fall within range [${!isNaN(minVal) ? minVal : '—'}, ${!isNaN(maxVal) ? maxVal : '—'}] for "${escHtml(col)}".</div>`;
+  } else {
+    const pct = ((violations.length / state.workingData.length) * 100).toFixed(1);
+    const sample = violations.slice(0, 5);
+    result.innerHTML = `
+      <div style="padding:0.75rem 1rem;background:var(--red-dim);border:1px solid rgba(240,106,106,0.2);border-radius:var(--radius);margin-bottom:0.75rem;">
+        <div style="font-size:13px;color:var(--red);margin-bottom:4px;">⚠ ${violations.length.toLocaleString()} violations (${pct}%)</div>
+        <div style="font-size:12px;color:var(--text2);">${violations.length.toLocaleString()} rows in "${escHtml(col)}" fall outside [${!isNaN(minVal) ? minVal : '—'}, ${!isNaN(maxVal) ? maxVal : '—'}].</div>
+      </div>
+      <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);">
+        Sample: ${sample.map(r => r[col]).join(', ')}${violations.length > 5 ? ` ... +${violations.length - 5} more` : ''}
+      </div>`;
+  }
+};
+
 function buildAnalysis() {
   // Destroy previous charts
-  chartInstances.forEach(c => c.destroy());
+  chartInstances.forEach(c => { try { c.destroy(); } catch(e) {} });
   chartInstances = [];
 
   const primary = document.getElementById('analysis-primary-content');
   const secondary = document.getElementById('analysis-secondary-content');
+  primary.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:2rem;text-align:center;">Computing analysis…</div>';
+  secondary.innerHTML = '';
+
+  // Defer heavy work so UI can render first
+  setTimeout(() => {
+  try {
   primary.innerHTML = '';
   secondary.innerHTML = '';
 
@@ -2542,12 +3102,20 @@ function buildAnalysis() {
 
   buildStatsTable(stats);
   buildConsistencyChecks(stats);
+  buildCardinalityClassifier(stats);
+  buildCorrelationMatrix(stats);
+  initCrosstab(stats);
+  buildShapeSummary(stats);
+  buildDatePatterns(stats);
+  initRangeValidator(stats);
   const ACCENT = '#c8f06a';
   const AMBER = '#f0b86a';
   const RED = '#f06a6a';
   const BLUE = '#6ab4f0';
   const GRID_COLOR = 'rgba(255,255,255,0.06)';
   const TEXT_COLOR = '#9e9d96';
+  const numericCols = state.headers.filter(h => stats.columns[h].isNumeric);
+  const dateCols = state.headers.filter(h => stats.columns[h].looksLikeDate);
 
   const chartDefaults = {
     color: TEXT_COLOR,
@@ -2557,7 +3125,21 @@ function buildAnalysis() {
   function makeCard(title, sub, container, breakdown) {
     const card = document.createElement('div');
     card.className = 'chart-card';
-    card.innerHTML = `<div class="chart-card-title">${escHtml(title)}</div>${sub ? `<div class="chart-card-sub">${escHtml(sub)}</div>` : ''}`;
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:8px;';
+    header.innerHTML = `
+      <div>
+        <div class="chart-card-title">${escHtml(title)}</div>
+        ${sub ? `<div class="chart-card-sub">${escHtml(sub)}</div>` : ''}
+      </div>
+      <button class="png-download-btn" title="Download chart as PNG" style="
+        background:transparent;border:1px solid var(--border2);border-radius:5px;
+        color:var(--text3);font-size:10px;cursor:pointer;padding:3px 7px;
+        font-family:'DM Mono',monospace;white-space:nowrap;flex-shrink:0;transition:all 0.15s;
+      " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+         onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">⬇ PNG</button>
+    `;
+    card.appendChild(header);
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'position:relative;height:220px;width:100%;';
     const canvas = document.createElement('canvas');
@@ -2570,6 +3152,16 @@ function buildAnalysis() {
       card.appendChild(bd);
     }
     container.appendChild(card);
+
+    // Wire PNG download after chart renders
+    const btn = header.querySelector('.png-download-btn');
+    btn.onclick = () => {
+      const link = document.createElement('a');
+      link.download = title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    };
+
     return canvas;
   }
 
@@ -2577,17 +3169,21 @@ function buildAnalysis() {
   state.headers.forEach(h => {
     const s = stats.columns[h];
     if (s.isNumeric || s.uniqueCount > 20) return;
-    const vals = state.workingData.map(r => r[h]).filter(v => !isEffectivelyMissing(v));
+    const nonMissingCount = s.totalCount - s.nullCount - s.blankCount;
+    // Rebuild freq from uniqueWithCounts (already computed in computeStats)
     const freq = {};
-    vals.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
+    s.uniqueWithCounts.forEach(entry => {
+      const match = entry.match(/^(.+) \((\d+)\)$/);
+      if (match) freq[match[1]] = parseInt(match[2]);
+    });
     const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 12);
-    const freqVals = sorted.map(([v, c]) => ({ v, c, pct: ((c / vals.length) * 100).toFixed(1) }));
+    const freqVals = sorted.map(([v, c]) => ({ v, c, pct: ((c / nonMissingCount) * 100).toFixed(1) }));
     const top3 = freqVals.slice(0, 3).map(f => `"${f.v}" (${f.pct}%)`).join(', ');
     const topCoverage = freqVals.slice(0, 3).reduce((a, f) => a + parseFloat(f.pct), 0).toFixed(1);
     const isConcentrated = parseFloat(topCoverage) > 80;
-    const entropy = -freqVals.reduce((a, f) => { const p = f.c / vals.length; return a + (p > 0 ? p * Math.log2(p) : 0); }, 0).toFixed(2);
-    const maxEntropy = Math.log2(s.uniqueCount).toFixed(2);
-    const balance = (entropy / maxEntropy * 100).toFixed(0);
+    const entropy = s.entropy;
+    const maxEntropy = Math.log2(s.uniqueCount) || 1;
+    const balance = ((entropy / maxEntropy) * 100).toFixed(0);
     const missingPct = ((s.nullCount + s.blankCount) / s.totalCount * 100).toFixed(1);
     let breakdown = `Top values: ${top3}. `;
     breakdown += `These three account for ${topCoverage}% of all rows — ${isConcentrated ? 'highly concentrated, meaning most records fall into a few categories' : 'reasonably spread across categories'}. `;
@@ -2595,7 +3191,7 @@ function buildAnalysis() {
     if (freqVals.length > 3) breakdown += `The remaining ${freqVals.length - 3} values each appear less than ${freqVals[3].pct}% of the time. `;
     if (s.hasSentinels) breakdown += `⚠ Sentinel values detected (e.g. "unknown") representing ${((s.totalSentinels / s.totalCount) * 100).toFixed(1)}% of rows — these mask genuinely missing data and will inflate one category's count in any aggregation. `;
     if (parseFloat(missingPct) > 0) breakdown += `${missingPct}% of rows have missing/null values in this column.`;
-    const canvas = makeCard(`"${h}" — value distribution`, `${s.uniqueCount} unique values · ${vals.length.toLocaleString()} non-missing rows`, primary, breakdown);
+    const canvas = makeCard(`"${h}" — value distribution`, `${s.uniqueCount} unique values · ${nonMissingCount.toLocaleString()} non-missing rows`, primary, breakdown);
     const chart = new Chart(canvas, {
       type: 'bar',
       data: {
@@ -2618,11 +3214,11 @@ function buildAnalysis() {
   state.headers.forEach(h => {
     const s = stats.columns[h];
     if (!s.isNumeric) return;
-    const vals = state.workingData.map(r => parseFloat(r[h])).filter(v => !isNaN(v));
-    if (vals.length < 5) return;
-    const min = Math.min(...vals), max = Math.max(...vals);
-    if (max === min) return; // skip zero-variance columns — no distribution to show
-    const bins = 20;
+    const vals = s.sortedNumeric;
+    if (!vals || vals.length < 5) return;
+    const min = s.min, max = s.max;
+    if (max === min) return;
+    const bins = Math.min(Math.max(Math.ceil(Math.log2(vals.length) + 1), 5), 40);
     const binSize = (max - min) / bins;
     const counts = Array(bins).fill(0);
     vals.forEach(v => {
@@ -2630,16 +3226,10 @@ function buildAnalysis() {
       counts[i]++;
     });
     const labels = counts.map((_, i) => (min + i * binSize).toFixed(1));
-    const sorted_vals = [...vals].sort((a, b) => a - b);
-    const median = sorted_vals.length % 2 === 0
-      ? (sorted_vals[sorted_vals.length/2-1] + sorted_vals[sorted_vals.length/2]) / 2
-      : sorted_vals[Math.floor(sorted_vals.length/2)];
-    const q1 = sorted_vals[Math.floor(sorted_vals.length * 0.25)];
-    const q3 = sorted_vals[Math.floor(sorted_vals.length * 0.75)];
-    const stdDev = Math.sqrt(vals.reduce((a, b) => a + (b - s.mean) ** 2, 0) / vals.length).toFixed(2);
-    const cv = ((stdDev / Math.abs(s.mean)) * 100).toFixed(0);
-    const skew = s.mean > median * 1.05 ? 'right-skewed (tail toward high values)' : s.mean < median * 0.95 ? 'left-skewed (tail toward low values)' : 'approximately symmetric';
-    const zeroCount = vals.filter(v => v === 0).length;
+    const median = s.median, q1 = s.q1, q3 = s.q3, stdDev = s.std;
+    const cv = stdDev && s.mean ? ((parseFloat(stdDev) / Math.abs(s.mean)) * 100).toFixed(0) : 0;
+    const skew = s.mean > s.median * 1.05 ? 'right-skewed (tail toward high values)' : s.mean < s.median * 0.95 ? 'left-skewed (tail toward low values)' : 'approximately symmetric';
+    const zeroCount = s.zeroCount || 0;
     const histBreakdown = `Median: ${median.toFixed(2)} · Q1: ${q1} · Q3: ${q3} · Std dev: ${stdDev}. `
       + `Mean (${s.mean}) vs median (${median.toFixed(2)}): distribution is ${skew}. `
       + `Coefficient of variation: ${cv}% — ${cv > 100 ? 'extremely high variability relative to mean, suggesting heavy outliers or mixed populations' : cv > 50 ? 'high variability' : 'moderate variability'}. `
@@ -2704,93 +3294,147 @@ function buildAnalysis() {
     chartInstances.push(chart);
   }
 
-  // ── PRIMARY 4: Time series if date column exists ──
-  const dateCols = state.headers.filter(h => stats.columns[h].looksLikeDate);
-  const numericCols = state.headers.filter(h => stats.columns[h].isNumeric);
+  // ── PRIMARY 4: Time series with count/sum/mean toggle ──
   if (dateCols.length > 0 && numericCols.length > 0) {
     const dateCol = dateCols[0];
     const numCol = numericCols[0];
-    const byMonth = {};
+
+    // Precompute all three aggregations
+    const byMonthSum = {}, byMonthCount = {}, byMonthVals = {};
     state.workingData.forEach(row => {
       const d = row[dateCol];
       if (!d || isEffectivelyMissing(d)) return;
       const month = d.slice(0, 7);
       const val = parseFloat(row[numCol]);
-      if (!isNaN(val)) { byMonth[month] = (byMonth[month] || 0) + val; }
+      byMonthCount[month] = (byMonthCount[month] || 0) + 1;
+      if (!isNaN(val)) {
+        byMonthSum[month] = (byMonthSum[month] || 0) + val;
+        if (!byMonthVals[month]) byMonthVals[month] = [];
+        byMonthVals[month].push(val);
+      }
     });
-    const months = Object.keys(byMonth).sort();
+    const months = Object.keys(byMonthCount).sort();
     if (months.length > 1) {
-      const monthVals = months.map(m => byMonth[m]);
-      const trendStart = monthVals[0], trendEnd = monthVals[monthVals.length - 1];
-      const overallChange = (((trendEnd - trendStart) / trendStart) * 100).toFixed(1);
-      const momChanges = monthVals.slice(1).map((v, i) => v - monthVals[i]);
-      const biggestJump = Math.max(...momChanges.map(Math.abs));
-      const biggestJumpIdx = momChanges.map(Math.abs).indexOf(biggestJump);
-      const avgMonthly = (monthVals.reduce((a, b) => a + b, 0) / monthVals.length).toFixed(2);
-      const peakMonth = months[monthVals.indexOf(Math.max(...monthVals))];
-      const troughMonth = months[monthVals.indexOf(Math.min(...monthVals))];
-      const trendDir = parseFloat(overallChange) > 5 ? 'upward' : parseFloat(overallChange) < -5 ? 'downward' : 'flat';
-      const tsBreakdown = `${months.length} months from ${months[0]} to ${months[months.length - 1]}. Overall trend is ${trendDir} (${overallChange > 0 ? '+' : ''}${overallChange}% from first to last period). `
-        + `Monthly average: ${parseFloat(avgMonthly).toLocaleString()}. Peak: ${peakMonth} (${Math.max(...monthVals).toLocaleString()}). Lowest: ${troughMonth} (${Math.min(...monthVals).toLocaleString()}). `
-        + `Largest single month-over-month change: ${biggestJump.toLocaleString()} between ${months[biggestJumpIdx]} and ${months[biggestJumpIdx + 1]} — ${momChanges[biggestJumpIdx] > 0 ? 'spike' : 'drop'} worth investigating for seasonal patterns or data anomalies.`;
-      const canvas = makeCard(`"${numCol}" over time`, `Aggregated by month from "${dateCol}"`, primary, tsBreakdown);
-      const chart = new Chart(canvas, {
+      const aggData = {
+        sum:   months.map(m => +(byMonthSum[m] || 0).toFixed(2)),
+        count: months.map(m => byMonthCount[m] || 0),
+        mean:  months.map(m => byMonthVals[m] ? +(byMonthVals[m].reduce((a,b)=>a+b,0)/byMonthVals[m].length).toFixed(2) : 0),
+      };
+
+      // Card with toggle
+      const card = document.createElement('div');
+      card.className = 'chart-card';
+      const toggleId = `ts-toggle-${Date.now()}`;
+      const header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:8px;';
+      header.innerHTML = `
+        <div>
+          <div class="chart-card-title">"${escHtml(numCol)}" over time</div>
+          <div class="chart-card-sub">By month from "${escHtml(dateCol)}"</div>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <button class="png-download-btn" title="Download PNG" style="background:transparent;border:1px solid var(--border2);border-radius:5px;color:var(--text3);font-size:10px;cursor:pointer;padding:3px 7px;font-family:'DM Mono',monospace;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">⬇ PNG</button>
+          ${['sum','count','mean'].map(a => `<button data-agg="${a}" style="padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:${a==='sum'?'var(--accent)':'transparent'};color:${a==='sum'?'#0e0e0f':'var(--text3)'};font-size:10px;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.15s;">${a}</button>`).join('')}
+        </div>
+      `;
+      card.appendChild(header);
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'position:relative;height:220px;width:100%;';
+      const canvas = document.createElement('canvas');
+      wrapper.appendChild(canvas);
+      card.appendChild(wrapper);
+
+      const peakMonth = months[aggData.sum.indexOf(Math.max(...aggData.sum))];
+      const tsBreakdown = `${months.length} months from ${months[0]} to ${months[months.length-1]}. Peak sum month: ${peakMonth}. Toggle between sum, count, and mean using the buttons above.`;
+      const bd = document.createElement('div');
+      bd.style.cssText = 'font-size:12px;color:var(--text3);line-height:1.6;border-top:1px solid var(--border);padding-top:0.75rem;margin-top:0.25rem;';
+      bd.textContent = tsBreakdown;
+      card.appendChild(bd);
+      primary.appendChild(card);
+
+      let currentAgg = 'sum';
+      const tsChart = new Chart(canvas, {
         type: 'line',
-        data: {
-          labels: months,
-          datasets: [{
-            data: months.map(m => byMonth[m]),
-            borderColor: ACCENT, backgroundColor: ACCENT + '22',
-            borderWidth: 2, pointRadius: 3, fill: true, tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw.toLocaleString()}` } } },
-          scales: {
-            x: { ticks: { ...chartDefaults, maxTicksLimit: 10, maxRotation: 35 }, grid: { color: GRID_COLOR } },
-            y: { ticks: chartDefaults, grid: { color: GRID_COLOR } }
-          }
-        }
+        data: { labels: months, datasets: [{ data: aggData.sum, borderColor: ACCENT, backgroundColor: ACCENT+'22', borderWidth:2, pointRadius:3, fill:true, tension:0.3 }] },
+        options: { responsive:true, maintainAspectRatio:false,
+          plugins: { legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.raw.toLocaleString()}`}} },
+          scales: { x:{ticks:{...chartDefaults,maxTicksLimit:10,maxRotation:35},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:GRID_COLOR}} } }
       });
-      chartInstances.push(chart);
+      chartInstances.push(tsChart);
+
+      // Wire toggle buttons
+      header.querySelectorAll('[data-agg]').forEach(btn => {
+        btn.onclick = () => {
+          currentAgg = btn.dataset.agg;
+          tsChart.data.datasets[0].data = aggData[currentAgg];
+          tsChart.update();
+          header.querySelectorAll('[data-agg]').forEach(b => {
+            b.style.background = b.dataset.agg === currentAgg ? 'var(--accent)' : 'transparent';
+            b.style.color = b.dataset.agg === currentAgg ? '#0e0e0f' : 'var(--text3)';
+          });
+        };
+      });
+
+      // PNG download
+      header.querySelector('.png-download-btn').onclick = () => {
+        const link = document.createElement('a');
+        link.download = `${numCol}_over_time.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      };
     }
   }
 
-  // ── SECONDARY 1: Sentinel value breakdown ──
+  // ── SECONDARY 1: Sentinel value breakdown — stacked bar ──
   const sentinelCols = state.headers.filter(h => stats.columns[h].hasSentinels);
-  sentinelCols.forEach(h => {
-    const s = stats.columns[h];
-    const entries = Object.entries(s.sentinelCounts).sort((a, b) => b[1] - a[1]);
-    const sentTotal = entries.reduce((a, [, c]) => a + c, 0);
-    const sentPct = ((sentTotal / state.workingData.length) * 100).toFixed(1);
-    const realDataPct = (100 - parseFloat(sentPct) - parseFloat(((s.nullCount + s.blankCount) / state.workingData.length * 100).toFixed(1))).toFixed(1);
-    const sentBreakdown = `${sentTotal.toLocaleString()} rows (${sentPct}%) contain placeholder values masking unknown data — meaning only ~${realDataPct}% of this column is genuinely populated. `
-      + `Breakdown: ${entries.slice(0, 4).map(([v, c]) => `"${v}" = ${c.toLocaleString()} rows (${((c / state.workingData.length) * 100).toFixed(1)}%)`).join(', ')}. `
-      + `These values are indistinguishable from real data in most analysis tools — they will be included in GROUP BY counts, averages, and filters unless explicitly excluded. `
-      + `${parseFloat(sentPct) > 20 ? '⚠ High sentinel rate — this column may not be reliable for analysis without first addressing these values.' : 'Decide whether to convert to NULL or keep as a distinct "Unknown" category before using this column in any grouping or aggregation.'}`;
-    const canvas = makeCard(`"${h}" — sentinel values`, 'Placeholder values that mask missing data', secondary, sentBreakdown);
+  if (sentinelCols.length > 0) {
+    const sentTotals = sentinelCols.map(h => {
+      const s = stats.columns[h];
+      const sentTotal = Object.values(s.sentinelCounts).reduce((a, b) => a + b, 0);
+      const missing = s.nullCount + s.blankCount;
+      const real = s.totalCount - sentTotal - missing;
+      return { h, real, sentinel: sentTotal, missing, total: s.totalCount };
+    });
+
+    const worstCol = sentTotals.reduce((a, b) => (b.sentinel / b.total > a.sentinel / a.total ? b : a));
+    const sentBreakdown = `Stacked bars show what portion of each column is genuinely usable. "${worstCol.h}" is most affected — ${((worstCol.sentinel / worstCol.total) * 100).toFixed(1)}% sentinel values mean only ${((worstCol.real / worstCol.total) * 100).toFixed(1)}% of its data is reliable. Sentinel values are real strings that survive GROUP BY and filters — they must be explicitly handled before analysis.`;
+
+    const canvas = makeCard('Sentinel values by column', 'Real data vs placeholder vs missing — per column', secondary, sentBreakdown);
+    canvas.parentElement.style.height = `${Math.max(180, sentinelCols.length * 48 + 60)}px`;
+
     const chart = new Chart(canvas, {
-      type: 'doughnut',
+      type: 'bar',
       data: {
-        labels: entries.map(([v]) => v),
-        datasets: [{ data: entries.map(([, c]) => c), backgroundColor: [AMBER + 'cc', RED + 'cc', BLUE + 'cc', ACCENT + 'cc'], borderWidth: 0 }]
+        labels: sentTotals.map(d => d.h),
+        datasets: [
+          { label: 'Real data',      data: sentTotals.map(d => +((d.real / d.total) * 100).toFixed(1)),     backgroundColor: ACCENT + '99', borderWidth: 0 },
+          { label: 'Sentinel values', data: sentTotals.map(d => +((d.sentinel / d.total) * 100).toFixed(1)), backgroundColor: AMBER + 'cc',  borderWidth: 0 },
+          { label: 'Null / empty',   data: sentTotals.map(d => +((d.missing / d.total) * 100).toFixed(1)),  backgroundColor: RED + '99',    borderWidth: 0 },
+        ]
       },
       options: {
+        indexAxis: 'y',
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'right', labels: { ...chartDefaults, boxWidth: 12 } }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toLocaleString()}` } } }
+        plugins: {
+          legend: { position: 'top', labels: { ...chartDefaults, boxWidth: 12, padding: 12 } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}%` } }
+        },
+        scales: {
+          x: { stacked: true, max: 100, ticks: { ...chartDefaults, callback: v => v + '%' }, grid: { color: GRID_COLOR } },
+          y: { stacked: true, ticks: chartDefaults, grid: { color: 'transparent' } }
+        }
       }
     });
     chartInstances.push(chart);
-  });
+  }
 
-  // ── SECONDARY 2: Numeric column correlation (if 2+ numeric cols) ──
+  // ── SECONDARY 2: Scatter or heatmap depending on column cardinality ──
   if (numericCols.length >= 2) {
     const col1 = numericCols[0], col2 = numericCols[1];
-    const pairs = state.workingData
+    const allPairs = state.workingData
       .map(r => ({ x: parseFloat(r[col1]), y: parseFloat(r[col2]) }))
-      .filter(p => !isNaN(p.x) && !isNaN(p.y))
-      .slice(0, 500); // cap for performance
+      .filter(p => !isNaN(p.x) && !isNaN(p.y));
+    const pairs = allPairs.slice(0, 500);
     const n = pairs.length;
     const mx = pairs.reduce((a, p) => a + p.x, 0) / n;
     const my = pairs.reduce((a, p) => a + p.y, 0) / n;
@@ -2800,63 +3444,77 @@ function buildAnalysis() {
     const r2 = (r * r * 100).toFixed(1);
     const strength = Math.abs(r) > 0.7 ? 'strong' : Math.abs(r) > 0.4 ? 'moderate' : Math.abs(r) > 0.2 ? 'weak' : 'negligible';
     const direction = r > 0.05 ? 'positive' : r < -0.05 ? 'negative' : 'no directional';
-    const scatterBreakdown = `Pearson r = ${r} → ${strength} ${direction} linear correlation. R² = ${r2}% — meaning "${col1}" explains ${r2}% of variance in "${col2}". `
-      + `${Math.abs(r) > 0.7 ? `Strong relationship: as "${col1}" ${r > 0 ? 'increases' : 'decreases'}, "${col2}" tends to ${r > 0 ? 'increase' : 'decrease'} predictably. Use with caution — correlation does not imply causation.` : Math.abs(r) < 0.2 ? `These columns appear largely independent — knowing "${col1}" tells you little about "${col2}".` : `Some relationship exists but with considerable variance — other factors likely influence "${col2}".`} `
-      + `Based on ${n.toLocaleString()} data points${n < state.workingData.length ? ` (sampled from ${state.workingData.length.toLocaleString()} total rows)` : ''}.`;
-    const canvas = makeCard(`"${col1}" vs "${col2}"`, 'Scatter — sample of up to 500 rows', secondary, scatterBreakdown);
-    const chart = new Chart(canvas, {
-      type: 'scatter',
-      data: { datasets: [{ data: pairs, backgroundColor: ACCENT + '66', pointRadius: 3 }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `(${ctx.parsed.x}, ${ctx.parsed.y})` } } },
-        scales: {
-          x: { title: { display: true, text: col1, color: TEXT_COLOR, font: { size: 10 } }, ticks: chartDefaults, grid: { color: GRID_COLOR } },
-          y: { title: { display: true, text: col2, color: TEXT_COLOR, font: { size: 10 } }, ticks: chartDefaults, grid: { color: GRID_COLOR } }
-        }
-      }
-    });
-    chartInstances.push(chart);
-  }
 
-  // ── SECONDARY 3: Outlier flag per numeric column ──
-  numericCols.forEach(h => {
-    const s = stats.columns[h];
-    if (!s.outlierCount || s.outlierCount === 0) return;
-    const vals = state.workingData.map(r => parseFloat(r[h])).filter(v => !isNaN(v));
-    const mean = s.mean;
-    const std = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length);
-    const data = vals.map((v, i) => ({ x: i, y: v, outlier: Math.abs(v - mean) > 3 * std }));
-    const outlierVals = vals.filter(v => Math.abs(v - mean) > 3 * std);
-    const maxOutlier = Math.max(...outlierVals).toFixed(2);
-    const minOutlier = Math.min(...outlierVals).toFixed(2);
-    const aboveCount = outlierVals.filter(v => v > mean).length;
-    const belowCount = outlierVals.filter(v => v < mean).length;
-    const outlierPct = ((s.outlierCount / state.workingData.length) * 100).toFixed(1);
-    const outlierBreakdown = `${s.outlierCount} values (${outlierPct}%) fall beyond 3σ (σ = ${std.toFixed(2)}) from the mean of ${mean}. `
-      + `Outlier range: ${minOutlier} to ${maxOutlier}. `
-      + `${aboveCount > 0 && belowCount === 0 ? `All outliers are above the mean — suggests right-skewed extremes or data entry errors adding abnormally high values.` : belowCount > 0 && aboveCount === 0 ? `All outliers are below the mean — suggests left-skewed extremes or negative data entry errors.` : `Outliers appear on both sides (${aboveCount} above, ${belowCount} below) — may reflect natural variability rather than systematic errors.`} `
-      + `${parseFloat(outlierPct) > 5 ? '⚠ Outlier rate exceeds 5% — likely indicates systematic data quality issues, not just natural extremes. Investigate before using this column in any model or aggregation.' : 'Low outlier rate — review individual rows in context before deciding to remove or cap.'}`;
-    const canvas = makeCard(`"${h}" — outliers flagged`, `${s.outlierCount} values beyond 3σ from mean (${mean})`, secondary, outlierBreakdown);
-    const chart = new Chart(canvas, {
-      type: 'scatter',
-      data: {
-        datasets: [
-          { label: 'Normal', data: data.filter(d => !d.outlier).map(d => ({ x: d.x, y: d.y })), backgroundColor: BLUE + '55', pointRadius: 2 },
-          { label: 'Outlier', data: data.filter(d => d.outlier).map(d => ({ x: d.x, y: d.y })), backgroundColor: RED, pointRadius: 5 }
-        ]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { ...chartDefaults, boxWidth: 10 } }, tooltip: { callbacks: { label: ctx => `value: ${ctx.parsed.y}` } } },
-        scales: {
-          x: { display: false },
-          y: { ticks: chartDefaults, grid: { color: GRID_COLOR } }
+    // Detect discrete columns — if unique count is low relative to rows, use heatmap
+    const uniqX = new Set(allPairs.map(p => p.x)).size;
+    const uniqY = new Set(allPairs.map(p => p.y)).size;
+    const isDiscrete = uniqX <= 20 && uniqY <= 20;
+
+    const scatterBreakdown = `Pearson r = ${r} → ${strength} ${direction} linear correlation. R² = ${r2}% — "${col1}" explains ${r2}% of variance in "${col2}". `
+      + `${Math.abs(r) > 0.7 ? `Strong: as "${col1}" ${r > 0 ? 'increases' : 'decreases'}, "${col2}" tends to ${r > 0 ? 'increase' : 'decrease'} predictably.` : Math.abs(r) < 0.2 ? `These columns appear largely independent.` : `Some relationship with considerable variance.`} `
+      + (isDiscrete ? `Discrete values detected — showing frequency heatmap instead of scatter. ` : '')
+      + `Based on ${allPairs.length.toLocaleString()} rows.`;
+
+    if (isDiscrete) {
+      // Frequency heatmap for discrete columns
+      const xVals = [...new Set(allPairs.map(p => p.x))].sort((a,b)=>a-b);
+      const yVals = [...new Set(allPairs.map(p => p.y))].sort((a,b)=>a-b);
+      const freqMap = {};
+      allPairs.forEach(({x,y}) => { const k=`${x}|${y}`; freqMap[k]=(freqMap[k]||0)+1; });
+      const maxFreq = Math.max(...Object.values(freqMap));
+
+      const card = document.createElement('div');
+      card.className = 'chart-card';
+      const headerEl = document.createElement('div');
+      headerEl.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:8px;';
+      headerEl.innerHTML = `<div><div class="chart-card-title">"${escHtml(col1)}" vs "${escHtml(col2)}"</div><div class="chart-card-sub">Frequency heatmap — ${allPairs.length.toLocaleString()} rows · ${uniqX}×${uniqY} grid</div></div>`;
+      card.appendChild(headerEl);
+
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'overflow:auto;margin-top:0.5rem;';
+      const cellSize = Math.min(44, Math.floor(380 / Math.max(xVals.length, yVals.length)));
+      let tableHtml = `<table style="border-collapse:collapse;font-family:'DM Mono',monospace;font-size:10px;">`;
+      tableHtml += `<tr><th style="padding:2px 6px;color:var(--text3);text-align:right;">${escHtml(col2)}↓ / ${escHtml(col1)}→</th>`;
+      xVals.forEach(x => { tableHtml += `<th style="padding:2px 4px;color:var(--text3);text-align:center;min-width:${cellSize}px;">${x}</th>`; });
+      tableHtml += '</tr>';
+      yVals.forEach(y => {
+        tableHtml += `<tr><td style="padding:2px 6px;color:var(--text3);text-align:right;">${y}</td>`;
+        xVals.forEach(x => {
+          const freq = freqMap[`${x}|${y}`] || 0;
+          const intensity = maxFreq > 0 ? freq/maxFreq : 0;
+          const bg = freq > 0 ? `rgba(200,240,106,${(intensity*0.8+0.1).toFixed(2)})` : 'transparent';
+          const textCol = intensity > 0.6 ? '#0e0e0f' : 'var(--text2)';
+          tableHtml += `<td style="width:${cellSize}px;height:${cellSize}px;background:${bg};text-align:center;vertical-align:middle;border:1px solid rgba(255,255,255,0.04);color:${textCol};" title="${x},${y}: ${freq}">${freq||''}</td>`;
+        });
+        tableHtml += '</tr>';
+      });
+      tableHtml += '</table>';
+      wrapper.innerHTML = tableHtml;
+      card.appendChild(wrapper);
+
+      const bd = document.createElement('div');
+      bd.style.cssText = 'font-size:12px;color:var(--text3);line-height:1.6;border-top:1px solid var(--border);padding-top:0.75rem;margin-top:0.75rem;';
+      bd.textContent = scatterBreakdown;
+      card.appendChild(bd);
+      secondary.appendChild(card);
+
+    } else {
+      const canvas = makeCard(`"${col1}" vs "${col2}"`, `Scatter — ${Math.min(500, allPairs.length).toLocaleString()} of ${allPairs.length.toLocaleString()} rows`, secondary, scatterBreakdown);
+      const chart = new Chart(canvas, {
+        type: 'scatter',
+        data: { datasets: [{ data: pairs, backgroundColor: ACCENT + '55', pointRadius: 3 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `(${ctx.parsed.x}, ${ctx.parsed.y})` } } },
+          scales: {
+            x: { title: { display: true, text: col1, color: TEXT_COLOR, font: { size: 10 } }, ticks: chartDefaults, grid: { color: GRID_COLOR } },
+            y: { title: { display: true, text: col2, color: TEXT_COLOR, font: { size: 10 } }, ticks: chartDefaults, grid: { color: GRID_COLOR } }
+          }
         }
-      }
-    });
-    chartInstances.push(chart);
-  });
+      });
+      chartInstances.push(chart);
+    }
+  }
 
   if (primary.children.length === 0) {
     primary.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:1rem 0;">No primary analysis available for this dataset structure.</div>';
@@ -2864,6 +3522,12 @@ function buildAnalysis() {
   if (secondary.children.length === 0) {
     secondary.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:1rem 0;">No secondary analysis available for this dataset.</div>';
   }
+
+  } catch(err) {
+    console.error('Analysis error:', err);
+    primary.innerHTML = `<div style="color:var(--red);font-size:13px;padding:1rem;background:var(--red-dim);border-radius:var(--radius);border:1px solid rgba(240,106,106,0.2);">Analysis error: ${escHtml(err.message)}<br><small style="color:var(--text3);">${escHtml(err.stack || '')}</small></div>`;
+  }
+  }, 50); // defer to allow UI to render loading state
 }
 
 // ─── LOG ──────────────────────────────────────────────────────────────────────
