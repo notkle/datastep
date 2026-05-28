@@ -803,13 +803,37 @@
       <div id="analysis-insights" style="margin-bottom:2rem;display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
           <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);">Claude Analysis</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="aiSuggestBlocks()" id="ai-suggest-btn" style="
+            padding:5px 14px;background:var(--bg2);border:1px solid var(--border2);
+            border-radius:var(--radius);font-size:12px;cursor:pointer;
+            font-family:'DM Sans',sans-serif;color:var(--text2);transition:all 0.15s;
+          " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+             onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">✦ AI Suggest</button>
           <button onclick="addInsightBlock()" style="
             padding:5px 14px;background:var(--accent);color:#0e0e0f;border:none;
             border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;
             font-family:'DM Sans',sans-serif;transition:all 0.15s;
           ">+ New analysis</button>
         </div>
+        </div>
         <div id="insight-blocks" style="display:flex;flex-direction:column;gap:1.5rem;"></div>
+        <div id="ai-suggest-panel" style="display:none;margin-top:1.5rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+          <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);">AI Suggestions</div>
+            <button onclick="createSelectedBlocks()" id="create-selected-btn" style="
+              padding:5px 14px;background:var(--accent);color:#0e0e0f;border:none;
+              border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;
+              font-family:'DM Sans',sans-serif;display:none;
+            ">Create selected</button>
+          </div>
+          <div id="ai-suggest-loading" style="padding:2rem;text-align:center;font-size:13px;color:var(--text3);display:none;">
+            <div style="margin-bottom:8px;">✦ Gemini is analyzing your dataset...</div>
+            <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--border2);">this takes a few seconds</div>
+          </div>
+          <div id="ai-suggest-error" style="display:none;margin:1rem 1.25rem;font-size:12px;color:var(--red);padding:8px 12px;background:var(--red-dim);border-radius:var(--radius);border:1px solid rgba(240,106,106,0.2);font-family:'DM Mono',monospace;"></div>
+          <div id="ai-suggest-cards" style="padding:1.25rem;display:flex;flex-direction:column;gap:0.75rem;"></div>
+        </div>
       </div>
 
       <!-- SHAPE SUMMARY -->
@@ -2258,6 +2282,176 @@ function resetAll() {
 }
 
 // ─── INSIGHT RENDERER ────────────────────────────────────────────────────────
+// ─── AI SUGGEST ───────────────────────────────────────────────────────────────
+const WORKER_URL = 'https://datastep.sotempyhehe.workers.dev/';
+let aiSuggestions = [];
+
+async function aiSuggestBlocks() {
+  const btn = document.getElementById('ai-suggest-btn');
+  const panel = document.getElementById('ai-suggest-panel');
+  const loading = document.getElementById('ai-suggest-loading');
+  const errorEl = document.getElementById('ai-suggest-error');
+  const cards = document.getElementById('ai-suggest-cards');
+  const createBtn = document.getElementById('create-selected-btn');
+
+  panel.style.display = 'block';
+  loading.style.display = 'block';
+  errorEl.style.display = 'none';
+  cards.innerHTML = '';
+  createBtn.style.display = 'none';
+  btn.textContent = '✦ Thinking...';
+  btn.style.pointerEvents = 'none';
+
+  const stats = computeStats();
+  const n = state.workingData.length;
+
+  // Build a compact stats summary for Gemini
+  let prompt = `Dataset: "${state.fileName}", ${n.toLocaleString()} rows, ${state.headers.length} columns.\n\nColumns:\n`;
+  state.headers.forEach(h => {
+    const s = stats.columns[h];
+    const type = s.looksLikeDate ? 'date' : s.isNumeric ? 'numeric' : 'categorical';
+    const mp = ((s.nullCount + s.blankCount) / s.totalCount * 100).toFixed(1);
+    if (s.isNumeric) {
+      prompt += `- ${h} (${type}): min=${s.min}, max=${s.max}, mean=${s.mean}, std=${s.std}${parseFloat(mp)>0?`, ${mp}% missing`:''}\n`;
+    } else {
+      const freq = {};
+      state.workingData.forEach(r => { if (!isEffectivelyMissing(r[h])) freq[r[h]] = (freq[r[h]]||0)+1; });
+      const top3 = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([v,c])=>`"${v}"(${((c/n)*100).toFixed(0)}%)`).join(', ');
+      prompt += `- ${h} (${type}, ${s.uniqueCount} unique${parseFloat(mp)>0?`, ${mp}% missing`:''}): ${top3}${s.hasSentinels?` — has sentinel values`:''}\n`;
+    }
+  });
+
+  // Correlations
+  const numCols = state.headers.filter(h => stats.columns[h].isNumeric);
+  if (numCols.length >= 2) {
+    prompt += `\nCorrelations:\n`;
+    const arrs = {};
+    numCols.forEach(h => { arrs[h] = new Float64Array(n); state.workingData.forEach((r,i) => { arrs[h][i] = parseFloat(r[h]); }); });
+    for (let i=0;i<numCols.length;i++) for (let j=i+1;j<numCols.length;j++) {
+      const a=arrs[numCols[i]],b=arrs[numCols[j]];
+      let nn=0,sa=0,sb=0,sab=0,sa2=0,sb2=0;
+      for(let k=0;k<a.length;k++){if(isNaN(a[k])||isNaN(b[k]))continue;nn++;sa+=a[k];sb+=b[k];sab+=a[k]*b[k];sa2+=a[k]*a[k];sb2+=b[k]*b[k];}
+      const num=nn*sab-sa*sb,den=Math.sqrt((nn*sa2-sa*sa)*(nn*sb2-sb*sb));
+      const r=den?(num/den).toFixed(2):0;
+      prompt += `- ${numCols[i]} × ${numCols[j]}: r=${r}\n`;
+    }
+  }
+
+  prompt += `\nSuggest 4-7 analysis blocks. Each block is a focused column selection with a reason why those columns together are analytically interesting. Vary the combinations — some pairs, some triples, some broader. Include at least one focused on data quality if relevant.\n\n`;
+  prompt += `Respond with ONLY valid JSON, no preamble, no code fences:\n`;
+  prompt += `{"suggestions":[{"title":"short title","columns":["col1","col2"],"reason":"1-2 sentences on why this combination is interesting and what to look for"}]}\n`;
+  prompt += `Rules: columns must be from [${state.headers.map(h=>`"${h}"`).join(',')}], 4-7 suggestions, no text outside JSON.`;
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Worker returned ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // Strip fences and parse
+    const stripped = data.text.replace(/^```(?:json)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
+    const parsed = JSON.parse(stripped);
+
+    if (!parsed.suggestions || !Array.isArray(parsed.suggestions)) throw new Error('Invalid response structure');
+
+    // Validate columns
+    parsed.suggestions.forEach((s, i) => {
+      if (!s.columns || !Array.isArray(s.columns)) throw new Error(`Suggestion ${i+1} missing columns`);
+      s.columns.forEach(col => {
+        if (!state.headers.includes(col)) throw new Error(`Suggestion ${i+1}: unknown column "${col}"`);
+      });
+    });
+
+    aiSuggestions = parsed.suggestions;
+    loading.style.display = 'none';
+    createBtn.style.display = 'block';
+
+    // Render suggestion cards
+    cards.innerHTML = '';
+    aiSuggestions.forEach((sug, i) => {
+      const card = document.createElement('div');
+      card.style.cssText = 'display:flex;align-items:flex-start;gap:12px;padding:0.875rem 1rem;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:border-color 0.15s;';
+      card.innerHTML = `
+        <input type="checkbox" id="sug-check-${i}" checked style="accent-color:var(--accent);width:14px;height:14px;flex-shrink:0;margin-top:2px;cursor:pointer;">
+        <div style="flex:1;">
+          <div style="font-size:13px;color:var(--text);font-weight:500;margin-bottom:4px;">${escHtml(sug.title)}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+            ${sug.columns.map(c=>`<span style="font-size:10px;font-family:'DM Mono',monospace;padding:1px 7px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:4px;color:var(--accent);">${escHtml(c)}</span>`).join('')}
+          </div>
+          <div style="font-size:12px;color:var(--text3);line-height:1.5;">${escHtml(sug.reason)}</div>
+        </div>
+      `;
+      card.onclick = e => {
+        if (e.target.type === 'checkbox') return;
+        const cb = document.getElementById(`sug-check-${i}`);
+        cb.checked = !cb.checked;
+      };
+      cards.appendChild(card);
+    });
+
+  } catch(e) {
+    loading.style.display = 'none';
+    errorEl.textContent = `Error: ${e.message}`;
+    errorEl.style.display = 'block';
+  }
+
+  btn.textContent = '✦ AI Suggest';
+  btn.style.pointerEvents = 'auto';
+}
+
+function createSelectedBlocks() {
+  aiSuggestions.forEach((sug, i) => {
+    const cb = document.getElementById(`sug-check-${i}`);
+    if (!cb || !cb.checked) return;
+
+    const id = ++insightBlockCounter;
+    insightBlocks[id] = { cols: new Set(sug.columns), chartInstances: [] };
+
+    const container = document.getElementById('insight-blocks');
+    const block = document.createElement('div');
+    block.id = `insight-block-${id}`;
+    block.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;';
+    block.innerHTML = `
+      <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;flex-shrink:0;">${escHtml(sug.title)}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;">
+          <div id="block-cols-${id}" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+        </div>
+        <button onclick="removeInsightBlock(${id})" style="background:transparent;border:1px solid var(--border2);border-radius:5px;padding:3px 8px;color:var(--text3);font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;flex-shrink:0;transition:all 0.15s;"
+          onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕ Remove</button>
+      </div>
+      <div style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border);background:var(--bg3);">
+        <div style="font-size:12px;color:var(--text3);line-height:1.5;font-style:italic;">${escHtml(sug.reason)}</div>
+      </div>
+      <div style="padding:0.875rem 1.25rem;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;">
+        <button onclick="copyBlockPrompt(${id})" id="block-copy-btn-${id}" style="padding:6px 14px;background:var(--bg3);border:1px solid var(--accent);border-radius:var(--radius);color:var(--accent);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;transition:all 0.15s;white-space:nowrap;">⎘ Copy prompt</button>
+        <div style="font-size:11px;color:var(--text3);">→ paste into Claude → paste response below</div>
+      </div>
+      <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;gap:8px;">
+        <textarea id="block-input-${id}" placeholder="Paste Claude's JSON response here..." style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:12px;font-family:'DM Mono',monospace;outline:none;resize:vertical;min-height:72px;transition:border-color 0.15s;line-height:1.5;"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        <button onclick="renderBlock(${id})" style="padding:8px 14px;background:var(--accent);color:#0e0e0f;border:none;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;align-self:flex-start;">Render</button>
+      </div>
+      <div id="block-error-${id}" style="display:none;margin:0.75rem 1.25rem 0;font-size:12px;color:var(--red);padding:8px 12px;background:var(--red-dim);border-radius:var(--radius);border:1px solid rgba(240,106,106,0.2);font-family:'DM Mono',monospace;"></div>
+      <div id="block-charts-${id}" style="padding:1.25rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:1.25rem;"></div>
+    `;
+    container.appendChild(block);
+    renderBlockColToggles(id);
+  });
+
+  // Hide the suggestion panel
+  document.getElementById('ai-suggest-panel').style.display = 'none';
+}
+
 // ─── INSIGHT BLOCK WORKSPACE ──────────────────────────────────────────────────
 let insightBlocks = {};
 let insightBlockCounter = 0;
