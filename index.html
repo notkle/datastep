@@ -799,24 +799,17 @@
            onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">⬇ Export report</button>
       </div>
 
-      <!-- AI INSIGHTS -->
+      <!-- AI INSIGHTS WORKSPACE -->
       <div id="analysis-insights" style="margin-bottom:2rem;display:none;">
-        <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:0.75rem;">Claude Insights</div>
-        <div style="display:flex;gap:8px;margin-bottom:1rem;">
-          <textarea id="insights-input" placeholder="Paste Claude's JSON response here..." style="
-            flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
-            padding:10px 14px;color:var(--text);font-size:12px;font-family:'DM Mono',monospace;
-            outline:none;resize:vertical;min-height:80px;transition:border-color 0.15s;line-height:1.5;
-          " onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
-          <button onclick="renderInsights()" style="
-            padding:0 16px;background:var(--accent);color:#0e0e0f;border:none;
-            border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;
-            font-family:'DM Sans',sans-serif;white-space:nowrap;align-self:flex-start;
-            padding-top:10px;padding-bottom:10px;
-          ">Render</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);">Claude Analysis</div>
+          <button onclick="addInsightBlock()" style="
+            padding:5px 14px;background:var(--accent);color:#0e0e0f;border:none;
+            border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;
+            font-family:'DM Sans',sans-serif;transition:all 0.15s;
+          ">+ New analysis</button>
         </div>
-        <div id="insights-error" style="display:none;font-size:12px;color:var(--red);padding:8px 12px;background:var(--red-dim);border-radius:var(--radius);border:1px solid rgba(240,106,106,0.2);margin-bottom:1rem;font-family:'DM Mono',monospace;"></div>
-        <div id="insights-charts" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:1.5rem;"></div>
+        <div id="insight-blocks" style="display:flex;flex-direction:column;gap:1.5rem;"></div>
       </div>
 
       <!-- SHAPE SUMMARY -->
@@ -2265,167 +2258,193 @@ function resetAll() {
 }
 
 // ─── INSIGHT RENDERER ────────────────────────────────────────────────────────
-function renderInsights() {
-  const input = document.getElementById('insights-input').value.trim();
-  const errorEl = document.getElementById('insights-error');
-  const chartsEl = document.getElementById('insights-charts');
-  errorEl.style.display = 'none';
-  chartsEl.innerHTML = '';
+// ─── INSIGHT BLOCK WORKSPACE ──────────────────────────────────────────────────
+let insightBlocks = {};
+let insightBlockCounter = 0;
 
-  // Strip markdown code fences defensively
-  const stripped = input.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+function addInsightBlock() {
+  const id = ++insightBlockCounter;
+  insightBlocks[id] = { cols: new Set(state.headers), chartInstances: [] };
+  const container = document.getElementById('insight-blocks');
+  const block = document.createElement('div');
+  block.id = `insight-block-${id}`;
+  block.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;';
+  block.innerHTML = `
+    <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;flex-shrink:0;">Analysis ${id}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;">
+        <div id="block-cols-${id}" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+      </div>
+      <button onclick="removeInsightBlock(${id})" style="background:transparent;border:1px solid var(--border2);border-radius:5px;padding:3px 8px;color:var(--text3);font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;flex-shrink:0;transition:all 0.15s;"
+        onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕ Remove</button>
+    </div>
+    <div style="padding:0.875rem 1.25rem;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;">
+      <button onclick="copyBlockPrompt(${id})" id="block-copy-btn-${id}" style="padding:6px 14px;background:var(--bg3);border:1px solid var(--accent);border-radius:var(--radius);color:var(--accent);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;transition:all 0.15s;white-space:nowrap;">⎘ Copy prompt</button>
+      <div style="font-size:11px;color:var(--text3);">→ paste into Claude → paste response below</div>
+    </div>
+    <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;gap:8px;">
+      <textarea id="block-input-${id}" placeholder="Paste Claude's JSON response here..." style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:12px;font-family:'DM Mono',monospace;outline:none;resize:vertical;min-height:72px;transition:border-color 0.15s;line-height:1.5;"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+      <button onclick="renderBlock(${id})" style="padding:8px 14px;background:var(--accent);color:#0e0e0f;border:none;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;align-self:flex-start;">Render</button>
+    </div>
+    <div id="block-error-${id}" style="display:none;margin:0.75rem 1.25rem 0;font-size:12px;color:var(--red);padding:8px 12px;background:var(--red-dim);border-radius:var(--radius);border:1px solid rgba(240,106,106,0.2);font-family:'DM Mono',monospace;"></div>
+    <div id="block-charts-${id}" style="padding:1.25rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:1.25rem;"></div>
+  `;
+  container.appendChild(block);
+  renderBlockColToggles(id);
+}
 
-  // Parse
-  let parsed;
-  try {
-    parsed = JSON.parse(stripped);
-  } catch(e) {
-    errorEl.textContent = `JSON parse error: ${e.message}. Make sure you pasted only Claude's JSON response with no extra text.`;
-    errorEl.style.display = 'block';
-    return;
-  }
+function renderBlockColToggles(id) {
+  const el = document.getElementById(`block-cols-${id}`);
+  if (!el) return;
+  const block = insightBlocks[id];
+  el.innerHTML = state.headers.map(h => {
+    const active = block.cols.has(h);
+    return `<button onclick="toggleBlockCol(${id},'${escHtml(h)}')" style="padding:2px 8px;border-radius:4px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s;background:${active?'var(--accent-dim)':'var(--bg3)'};border:1px solid ${active?'var(--accent)':'var(--border2)'};color:${active?'var(--accent)':'var(--text3)'};">${escHtml(h)}</button>`;
+  }).join('');
+}
 
-  // Validate top-level structure
-  if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.insights)) {
-    errorEl.textContent = 'Invalid structure: expected { "insights": [...] } at the top level.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (parsed.insights.length < 1 || parsed.insights.length > 10) {
-    errorEl.textContent = `Expected 3–6 insights, got ${parsed.insights.length}.`;
-    errorEl.style.display = 'block';
-    return;
-  }
+function toggleBlockCol(id, col) {
+  const block = insightBlocks[id];
+  if (!block) return;
+  if (block.cols.has(col)) { if (block.cols.size <= 1) return; block.cols.delete(col); }
+  else block.cols.add(col);
+  renderBlockColToggles(id);
+}
 
-  const VALID_CHART_TYPES = ['bar', 'histogram', 'crosstab', 'scatter', 'line', 'missing'];
+function removeInsightBlock(id) {
+  const block = insightBlocks[id];
+  if (block && block.chartInstances) block.chartInstances.forEach(c => { try { c.destroy(); } catch(e) {} });
+  delete insightBlocks[id];
+  const el = document.getElementById(`insight-block-${id}`);
+  if (el) el.remove();
+}
 
-  // Validate each insight
-  for (let i = 0; i < parsed.insights.length; i++) {
-    const ins = parsed.insights[i];
-    if (!ins.title || typeof ins.title !== 'string') { showInsightError(i, 'missing or invalid "title"', errorEl); return; }
-    if (!ins.finding || typeof ins.finding !== 'string') { showInsightError(i, 'missing or invalid "finding"', errorEl); return; }
-    if (!ins.chart_type || !VALID_CHART_TYPES.includes(ins.chart_type)) { showInsightError(i, `invalid chart_type "${ins.chart_type}" — must be one of: ${VALID_CHART_TYPES.join(', ')}`, errorEl); return; }
-    if (!Array.isArray(ins.columns) || ins.columns.length === 0) { showInsightError(i, 'missing or empty "columns" array', errorEl); return; }
-    for (const col of ins.columns) {
-      if (!state.headers.includes(col)) {
-        showInsightError(i, `column "${col}" not found in dataset. Valid columns: ${state.headers.join(', ')}`, errorEl);
-        return;
-      }
-    }
-  }
-
-  // Destroy previous insight charts
-  chartInstances.forEach(c => { try { c.destroy(); } catch(e) {} });
-  chartInstances = [];
-
-  // Render each insight
+function copyBlockPrompt(id) {
+  const block = insightBlocks[id];
+  if (!block) return;
+  const selectedCols = [...block.cols];
   const stats = computeStats();
-  const ACCENT = '#c8f06a', AMBER = '#f0b86a', RED = '#f06a6a', BLUE = '#6ab4f0';
-  const GRID_COLOR = 'rgba(255,255,255,0.06)', TEXT_COLOR = '#9e9d96';
-  const chartDefaults = { color: TEXT_COLOR, font: { family: 'DM Mono, monospace', size: 11 } };
+  const n = state.workingData.length;
+  const focusMode = selectedCols.length < state.headers.length;
 
-  parsed.insights.forEach(ins => {
-    const card = document.createElement('div');
-    card.className = 'chart-card';
-
-    // Header
-    const hdr = document.createElement('div');
-    hdr.innerHTML = `<div class="chart-card-title">${escHtml(ins.title)}</div>`;
-    card.appendChild(hdr);
-
-    // Chart wrapper
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'position:relative;height:220px;width:100%;';
-    const canvas = document.createElement('canvas');
-    wrapper.appendChild(canvas);
-    card.appendChild(wrapper);
-
-    // Finding text
-    const finding = document.createElement('div');
-    finding.style.cssText = 'font-size:12px;color:var(--text3);line-height:1.6;border-top:1px solid var(--border);padding-top:0.75rem;margin-top:0.25rem;';
-    finding.textContent = ins.finding;
-    card.appendChild(finding);
-    chartsEl.appendChild(card);
-
-    const col1 = ins.columns[0];
-    const col2 = ins.columns[1];
-    const s1 = stats.columns[col1];
-
-    try {
-      let chart;
-      if (ins.chart_type === 'bar') {
-        const freq = {};
-        state.workingData.forEach(r => { const v = r[col1]; if (!isEffectivelyMissing(v)) freq[v] = (freq[v]||0)+1; });
-        const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,15);
-        chart = new Chart(canvas, { type:'bar', data:{ labels:sorted.map(([v])=>v), datasets:[{data:sorted.map(([,c])=>c), backgroundColor:ACCENT+'99', borderWidth:0, borderRadius:3}] },
-          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{...chartDefaults,maxRotation:35},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:GRID_COLOR}} } } });
-
-      } else if (ins.chart_type === 'histogram') {
-        const vals = s1.sortedNumeric;
-        if (vals && vals.length > 0) {
-          const min = s1.min, max = s1.max;
-          const bins = Math.min(Math.max(Math.ceil(Math.log2(vals.length)+1),5),40);
-          const binSize = (max-min)/bins;
-          const counts = Array(bins).fill(0);
-          vals.forEach(v => { const i = Math.min(Math.floor((v-min)/binSize), bins-1); counts[i]++; });
-          const labels = counts.map((_,i) => (min+i*binSize).toFixed(1));
-          chart = new Chart(canvas, { type:'bar', data:{ labels, datasets:[{data:counts, backgroundColor:BLUE+'99', borderWidth:0, borderRadius:2}] },
-            options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{...chartDefaults,maxTicksLimit:8},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:GRID_COLOR}} } } });
-        }
-
-      } else if (ins.chart_type === 'crosstab' && col2) {
-        const rowVals = [...new Set(state.workingData.map(r=>r[col1]).filter(v=>!isEffectivelyMissing(v)))].sort().slice(0,10);
-        const colVals = [...new Set(state.workingData.map(r=>r[col2]).filter(v=>!isEffectivelyMissing(v)))].sort().slice(0,8);
-        const datasets = colVals.map((cv,ci) => {
-          const colors = [ACCENT,BLUE,AMBER,RED,'#a78bfa','#34d399','#f472b6','#60a5fa'];
-          const data = rowVals.map(rv => state.workingData.filter(r=>r[col1]===rv&&r[col2]===cv).length);
-          return { label:cv, data, backgroundColor:colors[ci%colors.length]+'bb', borderWidth:0, borderRadius:2 };
-        });
-        chart = new Chart(canvas, { type:'bar', data:{ labels:rowVals, datasets },
-          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{...chartDefaults,boxWidth:10}}},
-            scales:{ x:{stacked:false,ticks:{...chartDefaults,maxRotation:35},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:GRID_COLOR}} } } });
-
-      } else if (ins.chart_type === 'scatter' && col2) {
-        const pairs = state.workingData.map(r=>({x:parseFloat(r[col1]),y:parseFloat(r[col2])})).filter(p=>!isNaN(p.x)&&!isNaN(p.y)).slice(0,500);
-        chart = new Chart(canvas, { type:'scatter', data:{ datasets:[{data:pairs, backgroundColor:ACCENT+'55', pointRadius:3}] },
-          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-            scales:{ x:{title:{display:true,text:col1,color:TEXT_COLOR,font:{size:10}},ticks:chartDefaults,grid:{color:GRID_COLOR}},
-                     y:{title:{display:true,text:col2,color:TEXT_COLOR,font:{size:10}},ticks:chartDefaults,grid:{color:GRID_COLOR}} } } });
-
-      } else if (ins.chart_type === 'line' && col2) {
-        const dateCol = s1.looksLikeDate ? col1 : col2;
-        const numCol = s1.looksLikeDate ? col2 : col1;
-        const byMonth = {};
-        state.workingData.forEach(r => {
-          const d = r[dateCol]; if (!d||isEffectivelyMissing(d)) return;
-          const month = d.slice(0,7);
-          const val = parseFloat(r[numCol]);
-          if (!isNaN(val)) byMonth[month] = (byMonth[month]||0)+val;
-        });
-        const months = Object.keys(byMonth).sort();
-        chart = new Chart(canvas, { type:'line', data:{ labels:months, datasets:[{data:months.map(m=>byMonth[m]), borderColor:ACCENT, backgroundColor:ACCENT+'22', borderWidth:2, pointRadius:3, fill:true, tension:0.3}] },
-          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-            scales:{ x:{ticks:{...chartDefaults,maxTicksLimit:10,maxRotation:35},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:GRID_COLOR}} } } });
-
-      } else if (ins.chart_type === 'missing') {
-        const missingData = ins.columns.map(h => ({ col:h, missing:stats.columns[h].nullCount+stats.columns[h].blankCount, total:stats.columns[h].totalCount })).filter(d=>d.missing>0);
-        if (missingData.length > 0) {
-          chart = new Chart(canvas, { type:'bar', data:{ labels:missingData.map(d=>d.col), datasets:[{data:missingData.map(d=>+((d.missing/d.total)*100).toFixed(1)), backgroundColor:RED+'99', borderWidth:0, borderRadius:3}] },
-            options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw}% missing`}}},
-              scales:{ x:{max:100,ticks:{...chartDefaults,callback:v=>v+'%'},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:'transparent'}} } } });
-        }
-      }
-
-      if (chart) chartInstances.push(chart);
-    } catch(e) {
-      wrapper.innerHTML = `<div style="padding:1rem;font-size:12px;color:var(--red);font-family:'DM Mono',monospace;">Chart render error: ${escHtml(e.message)}</div>`;
+  let prompt = `I have a dataset called "${state.fileName}" with ${n.toLocaleString()} rows.\n\n`;
+  prompt += focusMode ? `Focus specifically on the relationships between these ${selectedCols.length} columns:\n\n` : `Analyze all columns:\n\n`;
+  prompt += `COLUMNS:\n`;
+  selectedCols.forEach(h => {
+    const s = stats.columns[h];
+    const type = s.looksLikeDate?'date':s.isNumeric?'numeric':'categorical';
+    const mp = ((s.nullCount+s.blankCount)/s.totalCount*100).toFixed(1);
+    if (s.isNumeric) {
+      prompt += `- ${h} (${type}, ${parseFloat(mp)>0?mp+'% missing':'100% complete'}): min=${s.min}, max=${s.max}, mean=${s.mean}, median=${s.median}, std=${s.std}\n`;
+    } else {
+      const freq={};
+      state.workingData.forEach(r=>{if(!isEffectivelyMissing(r[h]))freq[r[h]]=(freq[r[h]]||0)+1;});
+      const top3=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([v,c])=>`"${v}" (${((c/n)*100).toFixed(1)}%)`).join(', ');
+      prompt += `- ${h} (${type}, ${s.uniqueCount} unique, ${parseFloat(mp)>0?mp+'% missing':'100% complete'}): ${top3}${s.hasSentinels?` — ⚠ ${((s.totalSentinels/n)*100).toFixed(1)}% sentinel values`:''}\n`;
     }
+  });
+
+  const selNum = selectedCols.filter(h => stats.columns[h].isNumeric);
+  if (selNum.length >= 2) {
+    prompt += `\nCORRELATIONS:\n`;
+    const arrs={};
+    selNum.forEach(h=>{arrs[h]=new Float64Array(n);state.workingData.forEach((r,i)=>{arrs[h][i]=parseFloat(r[h]);});});
+    for(let i=0;i<selNum.length;i++) for(let j=i+1;j<selNum.length;j++){
+      const a=arrs[selNum[i]],b=arrs[selNum[j]];
+      let nn=0,sa=0,sb=0,sab=0,sa2=0,sb2=0;
+      for(let k=0;k<a.length;k++){if(isNaN(a[k])||isNaN(b[k]))continue;nn++;sa+=a[k];sb+=b[k];sab+=a[k]*b[k];sa2+=a[k]*a[k];sb2+=b[k]*b[k];}
+      const num=nn*sab-sa*sb,den=Math.sqrt((nn*sa2-sa*sa)*(nn*sb2-sb*sb));
+      const r=den?(num/den).toFixed(2):0;
+      const s=Math.abs(r)>0.7?'strong':Math.abs(r)>0.4?'moderate':Math.abs(r)>0.2?'weak':'negligible';
+      prompt += `- ${selNum[i]} × ${selNum[j]}: r=${r} (${s})\n`;
+    }
+  }
+
+  prompt += `\nIMPORTANT: Respond with ONLY valid JSON, no preamble, no code fences:\n{"insights":[{"title":"string","finding":"2-3 sentences","chart_type":"bar|histogram|crosstab|scatter|line|missing","columns":["col_name"]}]}\n`;
+  prompt += `Rules: columns from [${selectedCols.map(h=>`"${h}"`).join(',')}], chart_type one of: bar(1 categorical), histogram(1 numeric), crosstab(2 categorical), scatter(2 numeric), line(date+numeric), missing(null pattern), 3-6 insights, no text outside JSON.`;
+
+  navigator.clipboard.writeText(prompt).then(() => {
+    const btn = document.getElementById(`block-copy-btn-${id}`);
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.background = 'var(--accent)'; btn.style.color = '#0e0e0f';
+    setTimeout(() => { btn.textContent=orig; btn.style.background='var(--bg3)'; btn.style.color='var(--accent)'; }, 2000);
   });
 }
 
-function showInsightError(index, msg, el) {
-  el.textContent = `Insight ${index+1} invalid: ${msg}`;
-  el.style.display = 'block';
+function renderBlock(id) {
+  const block = insightBlocks[id];
+  if (!block) return;
+  const input = document.getElementById(`block-input-${id}`).value.trim();
+  const errorEl = document.getElementById(`block-error-${id}`);
+  const chartsEl = document.getElementById(`block-charts-${id}`);
+  errorEl.style.display = 'none'; chartsEl.innerHTML = '';
+  block.chartInstances.forEach(c=>{try{c.destroy();}catch(e){}});
+  block.chartInstances = [];
+
+  const stripped = input.replace(/^```(?:json)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
+  let parsed;
+  try { parsed = JSON.parse(stripped); }
+  catch(e) { errorEl.textContent=`JSON parse error: ${e.message}. Paste only Claude's JSON with no extra text.`; errorEl.style.display='block'; return; }
+
+  if (!parsed||!Array.isArray(parsed.insights)) { errorEl.textContent='Expected { "insights": [...] }'; errorEl.style.display='block'; return; }
+
+  const VALID=['bar','histogram','crosstab','scatter','line','missing'];
+  for(let i=0;i<parsed.insights.length;i++){
+    const ins=parsed.insights[i];
+    if(!ins.title){errorEl.textContent=`Insight ${i+1}: missing "title"`;errorEl.style.display='block';return;}
+    if(!ins.finding){errorEl.textContent=`Insight ${i+1}: missing "finding"`;errorEl.style.display='block';return;}
+    if(!VALID.includes(ins.chart_type)){errorEl.textContent=`Insight ${i+1}: invalid chart_type "${ins.chart_type}"`;errorEl.style.display='block';return;}
+    if(!Array.isArray(ins.columns)||!ins.columns.length){errorEl.textContent=`Insight ${i+1}: missing "columns"`;errorEl.style.display='block';return;}
+    for(const col of ins.columns){if(!state.headers.includes(col)){errorEl.textContent=`Insight ${i+1}: column "${col}" not found`;errorEl.style.display='block';return;}}
+  }
+
+  const stats=computeStats();
+  const AC='#c8f06a',AM='#f0b86a',RE='#f06a6a',BL='#6ab4f0',GR='rgba(255,255,255,0.06)',TC='#9e9d96';
+  const cd={color:TC,font:{family:'DM Mono, monospace',size:11}};
+
+  parsed.insights.forEach(ins=>{
+    const card=document.createElement('div'); card.className='chart-card';
+    card.innerHTML=`<div class="chart-card-title">${escHtml(ins.title)}</div>`;
+    const wrap=document.createElement('div'); wrap.style.cssText='position:relative;height:220px;width:100%;';
+    const canvas=document.createElement('canvas'); wrap.appendChild(canvas); card.appendChild(wrap);
+    const fd=document.createElement('div'); fd.style.cssText='font-size:12px;color:var(--text3);line-height:1.6;border-top:1px solid var(--border);padding-top:0.75rem;margin-top:0.25rem;';
+    fd.textContent=ins.finding; card.appendChild(fd); chartsEl.appendChild(card);
+
+    const col1=ins.columns[0],col2=ins.columns[1],s1=stats.columns[col1];
+    let chart;
+    try{
+      if(ins.chart_type==='bar'){
+        const freq={};state.workingData.forEach(r=>{const v=r[col1];if(!isEffectivelyMissing(v))freq[v]=(freq[v]||0)+1;});
+        const sorted=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,15);
+        chart=new Chart(canvas,{type:'bar',data:{labels:sorted.map(([v])=>v),datasets:[{data:sorted.map(([,c])=>c),backgroundColor:AC+'99',borderWidth:0,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{...cd,maxRotation:35},grid:{color:GR}},y:{ticks:cd,grid:{color:GR}}}}});
+      } else if(ins.chart_type==='histogram'&&s1.sortedNumeric){
+        const vals=s1.sortedNumeric,min=s1.min,max=s1.max,bins=Math.min(Math.max(Math.ceil(Math.log2(vals.length)+1),5),40),bs=(max-min)/bins;
+        const counts=Array(bins).fill(0);vals.forEach(v=>{const i=Math.min(Math.floor((v-min)/bs),bins-1);counts[i]++;});
+        chart=new Chart(canvas,{type:'bar',data:{labels:counts.map((_,i)=>(min+i*bs).toFixed(1)),datasets:[{data:counts,backgroundColor:BL+'99',borderWidth:0,borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{...cd,maxTicksLimit:8},grid:{color:GR}},y:{ticks:cd,grid:{color:GR}}}}});
+      } else if(ins.chart_type==='crosstab'&&col2){
+        const rV=[...new Set(state.workingData.map(r=>r[col1]).filter(v=>!isEffectivelyMissing(v)))].sort().slice(0,10);
+        const cV=[...new Set(state.workingData.map(r=>r[col2]).filter(v=>!isEffectivelyMissing(v)))].sort().slice(0,8);
+        const colors=[AC,BL,AM,RE,'#a78bfa','#34d399','#f472b6','#60a5fa'];
+        const datasets=cV.map((cv,ci)=>({label:cv,data:rV.map(rv=>state.workingData.filter(r=>r[col1]===rv&&r[col2]===cv).length),backgroundColor:colors[ci%8]+'bb',borderWidth:0,borderRadius:2}));
+        chart=new Chart(canvas,{type:'bar',data:{labels:rV,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{...cd,boxWidth:10}}},scales:{x:{ticks:{...cd,maxRotation:35},grid:{color:GR}},y:{ticks:cd,grid:{color:GR}}}}});
+      } else if(ins.chart_type==='scatter'&&col2){
+        const pairs=state.workingData.map(r=>({x:parseFloat(r[col1]),y:parseFloat(r[col2])})).filter(p=>!isNaN(p.x)&&!isNaN(p.y)).slice(0,500);
+        chart=new Chart(canvas,{type:'scatter',data:{datasets:[{data:pairs,backgroundColor:AC+'55',pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:col1,color:TC,font:{size:10}},ticks:cd,grid:{color:GR}},y:{title:{display:true,text:col2,color:TC,font:{size:10}},ticks:cd,grid:{color:GR}}}}});
+      } else if(ins.chart_type==='line'&&col2){
+        const dc=s1.looksLikeDate?col1:col2,nc=s1.looksLikeDate?col2:col1,bm={};
+        state.workingData.forEach(r=>{const d=r[dc];if(!d||isEffectivelyMissing(d))return;const m=d.slice(0,7);const v=parseFloat(r[nc]);if(!isNaN(v))bm[m]=(bm[m]||0)+v;});
+        const months=Object.keys(bm).sort();
+        chart=new Chart(canvas,{type:'line',data:{labels:months,datasets:[{data:months.map(m=>bm[m]),borderColor:AC,backgroundColor:AC+'22',borderWidth:2,pointRadius:3,fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{...cd,maxTicksLimit:10,maxRotation:35},grid:{color:GR}},y:{ticks:cd,grid:{color:GR}}}}});
+      } else if(ins.chart_type==='missing'){
+        const md=ins.columns.map(h=>({col:h,missing:stats.columns[h].nullCount+stats.columns[h].blankCount,total:stats.columns[h].totalCount})).filter(d=>d.missing>0);
+        if(md.length>0)chart=new Chart(canvas,{type:'bar',data:{labels:md.map(d=>d.col),datasets:[{data:md.map(d=>+((d.missing/d.total)*100).toFixed(1)),backgroundColor:RE+'99',borderWidth:0,borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw}% missing`}}},scales:{x:{max:100,ticks:{...cd,callback:v=>v+'%'},grid:{color:GR}},y:{ticks:cd,grid:{color:'transparent'}}}}});
+      }
+      if(chart)block.chartInstances.push(chart);
+    }catch(e){wrap.innerHTML=`<div style="padding:1rem;font-size:12px;color:var(--red);font-family:'DM Mono',monospace;">Chart error: ${escHtml(e.message)}</div>`;}
+  });
 }
 
 // ─── INTERPRET WITH CLAUDE ────────────────────────────────────────────────────
