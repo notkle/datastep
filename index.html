@@ -2495,7 +2495,7 @@ function buildBlockPrompt(id) {
   }
 
   prompt += `\nRespond with ONLY valid JSON, no preamble, no code fences:\n`;
-  prompt += `{"insights":[{"title":"string","finding":"2-3 sentences","chart_type":"bar|histogram|crosstab|scatter|line|missing","columns":["col_name"]}]}\n`;
+  prompt += `{"insights":[{"title":"string","finding":"1-2 sentences","chart_type":"bar|histogram|crosstab|scatter|line|missing","columns":["col_name"]}]}\n`;
   prompt += `Rules: columns from [${selectedCols.map(h=>`"${h}"`).join(',')}], chart_type one of: bar(1 categorical), histogram(1 numeric), crosstab(2 categorical), scatter(2 numeric), line(date+numeric), missing(null pattern), 3-6 insights, no text outside JSON.`;
   return prompt;
 }
@@ -2743,7 +2743,7 @@ function copyInterpretPrompt() {
 
   prompt += `\nYour task: identify the 3–6 most interesting patterns, relationships, or anomalies in this data. For each, specify which columns are involved and what chart would best illustrate it.\n\n`;
   prompt += `IMPORTANT: Respond with ONLY a valid JSON object — no preamble, no explanation, no code fences. Exact schema:\n`;
-  prompt += `{\n  "insights": [\n    {\n      "title": "short chart title",\n      "finding": "2-3 sentence explanation of what this shows and why it matters",\n      "chart_type": "bar | histogram | crosstab | scatter | line | missing",\n      "columns": ["exact_column_name_1", "exact_column_name_2"]\n    }\n  ]\n}\n\n`;
+  prompt += `{\n  "insights": [\n    {\n      "title": "short chart title",\n      "finding": "1-2 sentence explanation",\n      "chart_type": "bar | histogram | crosstab | scatter | line | missing",\n      "columns": ["exact_column_name_1", "exact_column_name_2"]\n    }\n  ]\n}\n\n`;
   prompt += `Rules you must follow:\n`;
   prompt += `- columns must be from this exact list: ${state.headers.map(h => `"${h}"`).join(', ')}\n`;
   prompt += `- chart_type must be exactly one of: bar, histogram, crosstab, scatter, line, missing\n`;
