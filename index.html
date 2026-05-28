@@ -2420,7 +2420,7 @@ function createSelectedBlocks() {
     if (!cb || !cb.checked) return;
 
     const id = ++insightBlockCounter;
-    insightBlocks[id] = { cols: new Set(sug.columns), chartInstances: [] };
+    insightBlocks[id] = { cols: new Set(sug.columns), chartInstances: [], reason: sug.reason };
 
     const container = document.getElementById('insight-blocks');
     const block = document.createElement('div');
@@ -2492,6 +2492,15 @@ function buildBlockPrompt(id) {
       const r=den?(num/den).toFixed(2):0;
       prompt += `- ${selNum[i]} × ${selNum[j]}: r=${r}\n`;
     }
+  }
+
+  const notes = document.getElementById(`block-notes-${id}`)?.value.trim();
+  if (notes) {
+    prompt += `\nUSER NOTES: ${notes}\n`;
+  }
+
+  if (block.reason) {
+    prompt += `\nFOCUS: ${block.reason}\n`;
   }
 
   prompt += `\nRespond with ONLY valid JSON, no preamble, no code fences:\n`;
@@ -2636,10 +2645,16 @@ function addInsightBlock() {
         <div id="block-cols-${id}" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <button onclick="toggleBlockNotes(${id})" id="block-notes-btn-${id}" title="Add notes" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text3);font-size:13px;cursor:pointer;transition:all 0.15s;line-height:1;"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="if(!insightBlocks[${id}]._notesOpen){this.style.borderColor='var(--border2)';this.style.color='var(--text3)'}">+</button>
         <button onclick="renderSingleBlock(${id})" id="block-render-btn-${id}" style="padding:4px 12px;background:var(--bg3);border:1px solid var(--accent);border-radius:5px;color:var(--accent);font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.15s;white-space:nowrap;">Render</button>
         <button onclick="removeInsightBlock(${id})" style="background:transparent;border:1px solid var(--border2);border-radius:5px;padding:4px 8px;color:var(--text3);font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.15s;"
           onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕</button>
       </div>
+    </div>
+    <div id="block-notes-area-${id}" style="display:none;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border);background:var(--bg3);">
+      <textarea id="block-notes-${id}" placeholder="Add notes to refine the analysis — e.g. 'focus on weekday vs weekend patterns' or 'ignore the unknown category'..." style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;color:var(--text);font-size:12px;font-family:'DM Mono',monospace;outline:none;resize:vertical;min-height:60px;transition:border-color 0.15s;line-height:1.5;box-sizing:border-box;"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
     </div>
     <div id="block-status-${id}" style="display:none;padding:0.75rem 1.25rem;font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;border-bottom:1px solid var(--border);"></div>
     <div id="block-error-${id}" style="display:none;margin:0.75rem 1.25rem;font-size:12px;color:var(--red);padding:8px 12px;background:var(--red-dim);border-radius:var(--radius);border:1px solid rgba(240,106,106,0.2);font-family:'DM Mono',monospace;"></div>
@@ -2647,6 +2662,19 @@ function addInsightBlock() {
   `;
   container.appendChild(block);
   renderBlockColToggles(id);
+}
+
+function toggleBlockNotes(id) {
+  const block = insightBlocks[id];
+  if (!block) return;
+  block._notesOpen = !block._notesOpen;
+  const area = document.getElementById(`block-notes-area-${id}`);
+  const btn = document.getElementById(`block-notes-btn-${id}`);
+  area.style.display = block._notesOpen ? 'block' : 'none';
+  btn.textContent = block._notesOpen ? '−' : '+';
+  btn.style.borderColor = block._notesOpen ? 'var(--accent)' : 'var(--border2)';
+  btn.style.color = block._notesOpen ? 'var(--accent)' : 'var(--text3)';
+  if (block._notesOpen) document.getElementById(`block-notes-${id}`)?.focus();
 }
 
 function renderBlockColToggles(id) {
