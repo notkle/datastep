@@ -799,6 +799,26 @@
            onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">⬇ Export report</button>
       </div>
 
+      <!-- AI INSIGHTS -->
+      <div id="analysis-insights" style="margin-bottom:2rem;display:none;">
+        <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:0.75rem;">Claude Insights</div>
+        <div style="display:flex;gap:8px;margin-bottom:1rem;">
+          <textarea id="insights-input" placeholder="Paste Claude's JSON response here..." style="
+            flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
+            padding:10px 14px;color:var(--text);font-size:12px;font-family:'DM Mono',monospace;
+            outline:none;resize:vertical;min-height:80px;transition:border-color 0.15s;line-height:1.5;
+          " onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+          <button onclick="renderInsights()" style="
+            padding:0 16px;background:var(--accent);color:#0e0e0f;border:none;
+            border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;
+            font-family:'DM Sans',sans-serif;white-space:nowrap;align-self:flex-start;
+            padding-top:10px;padding-bottom:10px;
+          ">Render</button>
+        </div>
+        <div id="insights-error" style="display:none;font-size:12px;color:var(--red);padding:8px 12px;background:var(--red-dim);border-radius:var(--radius);border:1px solid rgba(240,106,106,0.2);margin-bottom:1rem;font-family:'DM Mono',monospace;"></div>
+        <div id="insights-charts" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:1.5rem;"></div>
+      </div>
+
       <!-- SHAPE SUMMARY -->
       <div id="analysis-shape" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:2rem;line-height:1.8;font-size:13px;color:var(--text2);display:none;"></div>
 
@@ -2244,6 +2264,170 @@ function resetAll() {
   
 }
 
+// ─── INSIGHT RENDERER ────────────────────────────────────────────────────────
+function renderInsights() {
+  const input = document.getElementById('insights-input').value.trim();
+  const errorEl = document.getElementById('insights-error');
+  const chartsEl = document.getElementById('insights-charts');
+  errorEl.style.display = 'none';
+  chartsEl.innerHTML = '';
+
+  // Strip markdown code fences defensively
+  const stripped = input.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+
+  // Parse
+  let parsed;
+  try {
+    parsed = JSON.parse(stripped);
+  } catch(e) {
+    errorEl.textContent = `JSON parse error: ${e.message}. Make sure you pasted only Claude's JSON response with no extra text.`;
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  // Validate top-level structure
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.insights)) {
+    errorEl.textContent = 'Invalid structure: expected { "insights": [...] } at the top level.';
+    errorEl.style.display = 'block';
+    return;
+  }
+  if (parsed.insights.length < 1 || parsed.insights.length > 10) {
+    errorEl.textContent = `Expected 3–6 insights, got ${parsed.insights.length}.`;
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  const VALID_CHART_TYPES = ['bar', 'histogram', 'crosstab', 'scatter', 'line', 'missing'];
+
+  // Validate each insight
+  for (let i = 0; i < parsed.insights.length; i++) {
+    const ins = parsed.insights[i];
+    if (!ins.title || typeof ins.title !== 'string') { showInsightError(i, 'missing or invalid "title"', errorEl); return; }
+    if (!ins.finding || typeof ins.finding !== 'string') { showInsightError(i, 'missing or invalid "finding"', errorEl); return; }
+    if (!ins.chart_type || !VALID_CHART_TYPES.includes(ins.chart_type)) { showInsightError(i, `invalid chart_type "${ins.chart_type}" — must be one of: ${VALID_CHART_TYPES.join(', ')}`, errorEl); return; }
+    if (!Array.isArray(ins.columns) || ins.columns.length === 0) { showInsightError(i, 'missing or empty "columns" array', errorEl); return; }
+    for (const col of ins.columns) {
+      if (!state.headers.includes(col)) {
+        showInsightError(i, `column "${col}" not found in dataset. Valid columns: ${state.headers.join(', ')}`, errorEl);
+        return;
+      }
+    }
+  }
+
+  // Destroy previous insight charts
+  chartInstances.forEach(c => { try { c.destroy(); } catch(e) {} });
+  chartInstances = [];
+
+  // Render each insight
+  const stats = computeStats();
+  const ACCENT = '#c8f06a', AMBER = '#f0b86a', RED = '#f06a6a', BLUE = '#6ab4f0';
+  const GRID_COLOR = 'rgba(255,255,255,0.06)', TEXT_COLOR = '#9e9d96';
+  const chartDefaults = { color: TEXT_COLOR, font: { family: 'DM Mono, monospace', size: 11 } };
+
+  parsed.insights.forEach(ins => {
+    const card = document.createElement('div');
+    card.className = 'chart-card';
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.innerHTML = `<div class="chart-card-title">${escHtml(ins.title)}</div>`;
+    card.appendChild(hdr);
+
+    // Chart wrapper
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:relative;height:220px;width:100%;';
+    const canvas = document.createElement('canvas');
+    wrapper.appendChild(canvas);
+    card.appendChild(wrapper);
+
+    // Finding text
+    const finding = document.createElement('div');
+    finding.style.cssText = 'font-size:12px;color:var(--text3);line-height:1.6;border-top:1px solid var(--border);padding-top:0.75rem;margin-top:0.25rem;';
+    finding.textContent = ins.finding;
+    card.appendChild(finding);
+    chartsEl.appendChild(card);
+
+    const col1 = ins.columns[0];
+    const col2 = ins.columns[1];
+    const s1 = stats.columns[col1];
+
+    try {
+      let chart;
+      if (ins.chart_type === 'bar') {
+        const freq = {};
+        state.workingData.forEach(r => { const v = r[col1]; if (!isEffectivelyMissing(v)) freq[v] = (freq[v]||0)+1; });
+        const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,15);
+        chart = new Chart(canvas, { type:'bar', data:{ labels:sorted.map(([v])=>v), datasets:[{data:sorted.map(([,c])=>c), backgroundColor:ACCENT+'99', borderWidth:0, borderRadius:3}] },
+          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{...chartDefaults,maxRotation:35},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:GRID_COLOR}} } } });
+
+      } else if (ins.chart_type === 'histogram') {
+        const vals = s1.sortedNumeric;
+        if (vals && vals.length > 0) {
+          const min = s1.min, max = s1.max;
+          const bins = Math.min(Math.max(Math.ceil(Math.log2(vals.length)+1),5),40);
+          const binSize = (max-min)/bins;
+          const counts = Array(bins).fill(0);
+          vals.forEach(v => { const i = Math.min(Math.floor((v-min)/binSize), bins-1); counts[i]++; });
+          const labels = counts.map((_,i) => (min+i*binSize).toFixed(1));
+          chart = new Chart(canvas, { type:'bar', data:{ labels, datasets:[{data:counts, backgroundColor:BLUE+'99', borderWidth:0, borderRadius:2}] },
+            options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{...chartDefaults,maxTicksLimit:8},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:GRID_COLOR}} } } });
+        }
+
+      } else if (ins.chart_type === 'crosstab' && col2) {
+        const rowVals = [...new Set(state.workingData.map(r=>r[col1]).filter(v=>!isEffectivelyMissing(v)))].sort().slice(0,10);
+        const colVals = [...new Set(state.workingData.map(r=>r[col2]).filter(v=>!isEffectivelyMissing(v)))].sort().slice(0,8);
+        const datasets = colVals.map((cv,ci) => {
+          const colors = [ACCENT,BLUE,AMBER,RED,'#a78bfa','#34d399','#f472b6','#60a5fa'];
+          const data = rowVals.map(rv => state.workingData.filter(r=>r[col1]===rv&&r[col2]===cv).length);
+          return { label:cv, data, backgroundColor:colors[ci%colors.length]+'bb', borderWidth:0, borderRadius:2 };
+        });
+        chart = new Chart(canvas, { type:'bar', data:{ labels:rowVals, datasets },
+          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{...chartDefaults,boxWidth:10}}},
+            scales:{ x:{stacked:false,ticks:{...chartDefaults,maxRotation:35},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:GRID_COLOR}} } } });
+
+      } else if (ins.chart_type === 'scatter' && col2) {
+        const pairs = state.workingData.map(r=>({x:parseFloat(r[col1]),y:parseFloat(r[col2])})).filter(p=>!isNaN(p.x)&&!isNaN(p.y)).slice(0,500);
+        chart = new Chart(canvas, { type:'scatter', data:{ datasets:[{data:pairs, backgroundColor:ACCENT+'55', pointRadius:3}] },
+          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+            scales:{ x:{title:{display:true,text:col1,color:TEXT_COLOR,font:{size:10}},ticks:chartDefaults,grid:{color:GRID_COLOR}},
+                     y:{title:{display:true,text:col2,color:TEXT_COLOR,font:{size:10}},ticks:chartDefaults,grid:{color:GRID_COLOR}} } } });
+
+      } else if (ins.chart_type === 'line' && col2) {
+        const dateCol = s1.looksLikeDate ? col1 : col2;
+        const numCol = s1.looksLikeDate ? col2 : col1;
+        const byMonth = {};
+        state.workingData.forEach(r => {
+          const d = r[dateCol]; if (!d||isEffectivelyMissing(d)) return;
+          const month = d.slice(0,7);
+          const val = parseFloat(r[numCol]);
+          if (!isNaN(val)) byMonth[month] = (byMonth[month]||0)+val;
+        });
+        const months = Object.keys(byMonth).sort();
+        chart = new Chart(canvas, { type:'line', data:{ labels:months, datasets:[{data:months.map(m=>byMonth[m]), borderColor:ACCENT, backgroundColor:ACCENT+'22', borderWidth:2, pointRadius:3, fill:true, tension:0.3}] },
+          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+            scales:{ x:{ticks:{...chartDefaults,maxTicksLimit:10,maxRotation:35},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:GRID_COLOR}} } } });
+
+      } else if (ins.chart_type === 'missing') {
+        const missingData = ins.columns.map(h => ({ col:h, missing:stats.columns[h].nullCount+stats.columns[h].blankCount, total:stats.columns[h].totalCount })).filter(d=>d.missing>0);
+        if (missingData.length > 0) {
+          chart = new Chart(canvas, { type:'bar', data:{ labels:missingData.map(d=>d.col), datasets:[{data:missingData.map(d=>+((d.missing/d.total)*100).toFixed(1)), backgroundColor:RED+'99', borderWidth:0, borderRadius:3}] },
+            options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw}% missing`}}},
+              scales:{ x:{max:100,ticks:{...chartDefaults,callback:v=>v+'%'},grid:{color:GRID_COLOR}}, y:{ticks:chartDefaults,grid:{color:'transparent'}} } } });
+        }
+      }
+
+      if (chart) chartInstances.push(chart);
+    } catch(e) {
+      wrapper.innerHTML = `<div style="padding:1rem;font-size:12px;color:var(--red);font-family:'DM Mono',monospace;">Chart render error: ${escHtml(e.message)}</div>`;
+    }
+  });
+}
+
+function showInsightError(index, msg, el) {
+  el.textContent = `Insight ${index+1} invalid: ${msg}`;
+  el.style.display = 'block';
+}
+
 // ─── INTERPRET WITH CLAUDE ────────────────────────────────────────────────────
 function copyInterpretPrompt() {
   const stats = computeStats();
@@ -2310,7 +2494,20 @@ function copyInterpretPrompt() {
     });
   }
 
-  prompt += `\nBased on these statistics, what relationships and patterns are worth investigating? What does this data suggest about the underlying subject matter? Highlight anything surprising, any potential data quality concerns not already listed, and any analytical questions this data could answer.`;
+  prompt += `\nYour task: identify the 3–6 most interesting patterns, relationships, or anomalies in this data. For each, specify which columns are involved and what chart would best illustrate it.\n\n`;
+  prompt += `IMPORTANT: Respond with ONLY a valid JSON object — no preamble, no explanation, no code fences. Exact schema:\n`;
+  prompt += `{\n  "insights": [\n    {\n      "title": "short chart title",\n      "finding": "2-3 sentence explanation of what this shows and why it matters",\n      "chart_type": "bar | histogram | crosstab | scatter | line | missing",\n      "columns": ["exact_column_name_1", "exact_column_name_2"]\n    }\n  ]\n}\n\n`;
+  prompt += `Rules you must follow:\n`;
+  prompt += `- columns must be from this exact list: ${state.headers.map(h => `"${h}"`).join(', ')}\n`;
+  prompt += `- chart_type must be exactly one of: bar, histogram, crosstab, scatter, line, missing\n`;
+  prompt += `- bar = categorical value frequencies (1 column)\n`;
+  prompt += `- histogram = numeric distribution (1 column)\n`;
+  prompt += `- crosstab = two categorical columns cross-tabulated\n`;
+  prompt += `- scatter = two numeric columns plotted against each other\n`;
+  prompt += `- line = one date column + one numeric column over time\n`;
+  prompt += `- missing = missing data pattern for 1 or more columns\n`;
+  prompt += `- insights array must have 3–6 entries\n`;
+  prompt += `- no text outside the JSON object\n`;
 
   navigator.clipboard.writeText(prompt).then(() => {
     const btn = document.getElementById('interpret-btn');
@@ -2477,6 +2674,7 @@ function switchMode(mode) {
   if (mode === 'analysis') {
     cleanView.style.display = 'none';
     analysisView.style.display = 'block';
+    document.getElementById('analysis-insights').style.display = 'block';
     tabClean.style.background = 'transparent';
     tabClean.style.borderColor = 'var(--border2)';
     tabClean.style.color = 'var(--text2)';
