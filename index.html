@@ -783,7 +783,14 @@
 
     <!-- ANALYSIS VIEW -->
     <div id="analysis-view" style="display:none;">
-      <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:1.5rem;">
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:1.5rem;">
+        <button onclick="copyInterpretPrompt()" style="
+          padding:7px 16px;background:var(--bg2);border:1px solid var(--border2);
+          border-radius:var(--radius);color:var(--text2);font-size:12px;cursor:pointer;
+          font-family:'DM Sans',sans-serif;transition:all 0.15s;
+        " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+           onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'"
+           id="interpret-btn">⎘ Interpret with Claude</button>
         <button onclick="exportReport()" style="
           padding:7px 16px;background:var(--bg2);border:1px solid var(--border2);
           border-radius:var(--radius);color:var(--text2);font-size:12px;cursor:pointer;
@@ -2235,6 +2242,90 @@ function resetAll() {
   
   document.getElementById('diff-legend').style.display = 'none';
   
+}
+
+// ─── INTERPRET WITH CLAUDE ────────────────────────────────────────────────────
+function copyInterpretPrompt() {
+  const stats = computeStats();
+  const n = state.workingData.length;
+  const cols = state.headers.length;
+  const numCols = state.headers.filter(h => stats.columns[h].isNumeric);
+  const catCols = state.headers.filter(h => !stats.columns[h].isNumeric && !stats.columns[h].looksLikeDate);
+  const dateCols = state.headers.filter(h => stats.columns[h].looksLikeDate);
+  const totalCells = n * cols;
+  const totalMissing = state.headers.reduce((a, h) => a + stats.columns[h].nullCount + stats.columns[h].blankCount, 0);
+  const completeness = (((totalCells - totalMissing) / totalCells) * 100).toFixed(1);
+
+  let prompt = `I have a dataset called "${state.fileName}" with ${n.toLocaleString()} rows and ${cols} columns (${numCols.length} numeric, ${catCols.length} categorical${dateCols.length > 0 ? `, ${dateCols.length} date` : ''}). Overall completeness: ${completeness}%.\n\n`;
+
+  // Column details
+  prompt += `COLUMNS:\n`;
+  state.headers.forEach(h => {
+    const s = stats.columns[h];
+    const type = s.looksLikeDate ? 'date' : s.isNumeric ? 'numeric' : 'categorical';
+    const missingPct = ((s.nullCount + s.blankCount) / s.totalCount * 100).toFixed(1);
+    const missing = parseFloat(missingPct) > 0 ? `, ${missingPct}% missing` : ', 100% complete';
+
+    if (s.isNumeric) {
+      prompt += `- ${h} (${type}${missing}): min=${s.min}, max=${s.max}, mean=${s.mean}, median=${s.median}, std=${s.std}`;
+    } else {
+      const freq = {};
+      state.workingData.forEach(r => { if (!isEffectivelyMissing(r[h])) freq[r[h]] = (freq[r[h]] || 0) + 1; });
+      const top3 = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0,3)
+        .map(([v,c]) => `"${v}" (${((c/n)*100).toFixed(1)}%)`).join(', ');
+      prompt += `- ${h} (${type}, ${s.uniqueCount} unique${missing}): top values: ${top3}`;
+    }
+    if (s.hasSentinels) prompt += ` — ⚠ ${((s.totalSentinels/n)*100).toFixed(1)}% sentinel values ("unknown" etc.)`;
+    prompt += '\n';
+  });
+
+  // Correlation matrix
+  if (numCols.length >= 2) {
+    prompt += `\nCORRELATIONS (Pearson r):\n`;
+    const arrays = {};
+    numCols.forEach(h => {
+      arrays[h] = new Float64Array(n);
+      state.workingData.forEach((r, i) => { arrays[h][i] = parseFloat(r[h]); });
+    });
+    for (let i = 0; i < numCols.length; i++) {
+      for (let j = i + 1; j < numCols.length; j++) {
+        const a = arrays[numCols[i]], b = arrays[numCols[j]];
+        let nn=0,sa=0,sb=0,sab=0,sa2=0,sb2=0;
+        for (let k=0;k<a.length;k++) { if(isNaN(a[k])||isNaN(b[k]))continue; nn++;sa+=a[k];sb+=b[k];sab+=a[k]*b[k];sa2+=a[k]*a[k];sb2+=b[k]*b[k]; }
+        const num=nn*sab-sa*sb, den=Math.sqrt((nn*sa2-sa*sa)*(nn*sb2-sb*sb));
+        const r = den ? (num/den).toFixed(2) : 0;
+        const strength = Math.abs(r)>0.7?'strong':Math.abs(r)>0.4?'moderate':Math.abs(r)>0.2?'weak':'negligible';
+        prompt += `- ${numCols[i]} × ${numCols[j]}: r = ${r} (${strength})\n`;
+      }
+    }
+  }
+
+  // Detected issues
+  if (state.steps.length > 0) {
+    prompt += `\nDETECTED DATA QUALITY ISSUES (${state.steps.length}):\n`;
+    state.steps.forEach((step, i) => {
+      const titleFn = STEP_TITLES[step.type];
+      const title = typeof titleFn === 'function' ? titleFn(step.column || (step.columns && step.columns.join(', ')) || '') : titleFn;
+      prompt += `${i+1}. ${title}\n`;
+    });
+  }
+
+  prompt += `\nBased on these statistics, what relationships and patterns are worth investigating? What does this data suggest about the underlying subject matter? Highlight anything surprising, any potential data quality concerns not already listed, and any analytical questions this data could answer.`;
+
+  navigator.clipboard.writeText(prompt).then(() => {
+    const btn = document.getElementById('interpret-btn');
+    const original = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.background = 'var(--accent)';
+    btn.style.color = '#0e0e0f';
+    btn.style.borderColor = 'var(--accent)';
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.style.background = 'var(--bg2)';
+      btn.style.color = 'var(--text2)';
+      btn.style.borderColor = 'var(--border2)';
+    }, 2000);
+  });
 }
 
 // ─── EXPORT REPORT ────────────────────────────────────────────────────────────
