@@ -2978,7 +2978,7 @@ async function shareDataset() {
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'Prefer': 'return=representation'
       },
-      body: JSON.stringify({ file_name: state.fileName, data: state.workingData })
+      body: JSON.stringify({ file_name: state.fileName, data: state.workingData, format: state.format || 'excel' })
     });
 
     if (!res.ok) {
@@ -3028,7 +3028,7 @@ async function loadSharedDataset(id) {
   if (uploadSub) uploadSub.textContent = 'Fetching from Supabase...';
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/shared_datasets?id=eq.${encodeURIComponent(id)}&select=file_name,data`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/shared_datasets?id=eq.${encodeURIComponent(id)}&select=file_name,data,format`, {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
@@ -3061,7 +3061,13 @@ async function loadSharedDataset(id) {
     workspace.classList.add('visible');
     renderTable();
     initKeyColDropdown();
-    document.getElementById('format-overlay').classList.add('visible');
+
+    // Auto-apply saved format — skip the format overlay
+    if (row.format) {
+      selectFormat(row.format);
+    } else {
+      document.getElementById('format-overlay').classList.add('visible');
+    }
 
   } catch(e) {
     if (uploadTitle) uploadTitle.textContent = 'Drop your file here';
