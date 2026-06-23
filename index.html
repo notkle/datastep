@@ -2961,8 +2961,8 @@ async function shareDataset() {
   // Size check
   const json = JSON.stringify({ file_name: state.fileName, data: state.workingData, headers: state.headers });
   const sizeKB = Math.round(json.length / 1024);
-  if (sizeKB > 5120) {
-    alert(`Dataset is ${sizeKB}KB — too large to share (max 5MB). Try sharing a filtered subset.`);
+  if (sizeKB > 35840) {
+    alert(`Dataset is ${(sizeKB/1024).toFixed(1)}MB — too large to share (max 35MB). Try sharing a filtered subset.`);
     return;
   }
 
